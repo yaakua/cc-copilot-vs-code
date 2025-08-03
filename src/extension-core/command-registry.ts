@@ -69,11 +69,6 @@ export class CommandRegistry {
           detail: 'cc-copilot.addThirdPartyProvider'
         },
         {
-          label: '$(account) Select Active AI Provider',
-          description: 'Choose which AI provider to use',
-          detail: 'cc-copilot.selectActiveProvider'
-        },
-        {
           label: '$(search) Discover Claude Accounts',
           description: 'Discover available Claude accounts',
           detail: 'cc-copilot.discoverClaudeAccounts'
