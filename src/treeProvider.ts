@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
 import { SessionManager } from './session-manager';
 import { SettingsManager } from './settings';
 import { Project, Session } from './shared/types';
@@ -97,7 +96,6 @@ export class ClaudeSessionProvider implements vscode.TreeDataProvider<ClaudeSess
     private formatSessionLabel(session: Session): string {
         const date = new Date(session.lastActiveAt);
         const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        const dateStr = date.toLocaleDateString();
         
         // 限制名称长度
         const maxNameLength = 30;

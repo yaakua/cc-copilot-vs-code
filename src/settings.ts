@@ -86,7 +86,7 @@ const defaultSettings: AppSettings = {
 
 export class SettingsManager extends EventEmitter {
   private context: vscode.ExtensionContext
-  private readonly configurationSection = 'claudeCompanion'
+  private readonly configurationSection = 'ccCopilot'
 
   constructor(context: vscode.ExtensionContext) {
     super()
@@ -248,6 +248,23 @@ export class SettingsManager extends EventEmitter {
     await this.addServiceProvider(claudeProvider)
   }
 
+  // 第三方服务提供方管理
+  async createThirdPartyProvider(providerName: string, account: ThirdPartyAccount): Promise<ServiceProvider> {
+    const providerId = `third_party_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    
+    const provider: ServiceProvider = {
+      id: providerId,
+      type: 'third_party',
+      name: providerName,
+      accounts: [account],
+      activeAccountId: account.id,
+      useProxy: true
+    }
+
+    await this.addServiceProvider(provider)
+    return provider
+  }
+
   // 第三方账号管理
   async addThirdPartyAccount(providerId: string, account: ThirdPartyAccount): Promise<void> {
     const providers = this.getServiceProviders()
@@ -327,6 +344,64 @@ export class SettingsManager extends EventEmitter {
     if (!account) return null
 
     return { provider: activeProvider, account }
+  }
+
+  // 获取所有可用的服务提供方选项（用于下拉选择）
+  getAllProviderOptions(): Array<{id: string, label: string, description?: string}> {
+    const providers = this.getServiceProviders()
+    const options: Array<{id: string, label: string, description?: string}> = []
+
+    // 添加Claude官方提供方
+    const claudeProvider = providers.find((p: ServiceProvider) => p.type === 'claude_official')
+    if (claudeProvider && claudeProvider.accounts.length > 0) {
+      const claudeAccounts = claudeProvider.accounts as ClaudeAccount[]
+      claudeAccounts.forEach(account => {
+        options.push({
+          id: `${claudeProvider.id}:${account.emailAddress}`,
+          label: `Claude Official - ${account.emailAddress}`,
+          description: account.organizationName
+        })
+      })
+    }
+
+    // 添加第三方提供方
+    const thirdPartyProviders = providers.filter((p: ServiceProvider) => p.type === 'third_party')
+    thirdPartyProviders.forEach(provider => {
+      const thirdPartyAccounts = provider.accounts as ThirdPartyAccount[]
+      thirdPartyAccounts.forEach(account => {
+        options.push({
+          id: `${provider.id}:${account.id}`,
+          label: `${provider.name} - ${account.name}`,
+          description: account.baseUrl
+        })
+      })
+    })
+
+    return options
+  }
+
+  // 根据组合ID设置活动提供方和账号
+  async setActiveProviderByCompositeId(compositeId: string): Promise<void> {
+    if (!compositeId) return
+
+    const [providerId, accountId] = compositeId.split(':')
+    if (providerId && accountId) {
+      await this.setActiveAccount(providerId, accountId)
+    }
+  }
+
+  // 获取当前活动提供方的组合ID
+  getCurrentActiveCompositeId(): string {
+    const activeProvider = this.getActiveServiceProvider()
+    if (!activeProvider || !activeProvider.activeAccountId) {
+      return ''
+    }
+
+    if (activeProvider.type === 'claude_official') {
+      return `${activeProvider.id}:${activeProvider.activeAccountId}`
+    } else {
+      return `${activeProvider.id}:${activeProvider.activeAccountId}`
+    }
   }
 
   // 设置服务提供方的代理使用状态

@@ -29,7 +29,7 @@ export function activate(context: vscode.ExtensionContext) {
     // 注册命令
     
     // 新建会话命令
-    const newSessionCommand = vscode.commands.registerCommand('claude-companion.newSession', async () => {
+    const newSessionCommand = vscode.commands.registerCommand('cc-copilot.newSession', async () => {
         // 检查Claude CLI是否可用
         const isAvailable = await terminalService.checkClaudeAvailability();
         if (!isAvailable) {
@@ -69,13 +69,13 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
     // 刷新会话命令
-    const refreshSessionsCommand = vscode.commands.registerCommand('claude-companion.refreshSessions', () => {
+    const refreshSessionsCommand = vscode.commands.registerCommand('cc-copilot.refreshSessions', () => {
         sessionProvider.refresh();
         vscode.window.showInformationMessage('Sessions refreshed');
     });
 
     // 打开会话命令
-    const openSessionCommand = vscode.commands.registerCommand('claude-companion.openSession', async (item) => {
+    const openSessionCommand = vscode.commands.registerCommand('cc-copilot.openSession', async (item) => {
         if (item && item.sessionId && item.session?.filePath) {
             // 检查Claude CLI是否可用
             const isAvailable = await terminalService.checkClaudeAvailability();
@@ -91,7 +91,7 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
     // 删除会话命令
-    const deleteSessionCommand = vscode.commands.registerCommand('claude-companion.deleteSession', async (item) => {
+    const deleteSessionCommand = vscode.commands.registerCommand('cc-copilot.deleteSession', async (item) => {
         if (item && item.sessionId) {
             const result = await vscode.window.showWarningMessage(
                 `Are you sure you want to delete session "${item.session?.name || item.sessionId}"?`,
@@ -107,14 +107,98 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
     // 同步Claude目录命令
-    const syncWithClaudeCommand = vscode.commands.registerCommand('claude-companion.syncWithClaude', async () => {
+    const syncWithClaudeCommand = vscode.commands.registerCommand('cc-copilot.syncWithClaude', async () => {
         await sessionProvider.syncWithClaudeDirectory();
         vscode.window.showInformationMessage('Synced with Claude directory');
     });
 
     // 打开设置命令
-    const openSettingsCommand = vscode.commands.registerCommand('claude-companion.openSettings', () => {
-        vscode.commands.executeCommand('workbench.action.openSettings', 'claudeCompanion');
+    const openSettingsCommand = vscode.commands.registerCommand('cc-copilot.openSettings', () => {
+        vscode.commands.executeCommand('workbench.action.openSettings', 'ccCopilot');
+    });
+
+    // 添加第三方AI提供方命令
+    const addThirdPartyProviderCommand = vscode.commands.registerCommand('cc-copilot.addThirdPartyProvider', async () => {
+        const providerName = await vscode.window.showInputBox({
+            prompt: 'Enter the provider name (e.g., "OpenAI", "Anthropic Compatible")',
+            placeHolder: 'Provider Name'
+        });
+        
+        if (!providerName) return;
+
+        const accountName = await vscode.window.showInputBox({
+            prompt: 'Enter the account name',
+            placeHolder: 'Account Name'
+        });
+        
+        if (!accountName) return;
+
+        const baseUrl = await vscode.window.showInputBox({
+            prompt: 'Enter the base URL for the API',
+            placeHolder: 'https://api.example.com/v1'
+        });
+        
+        if (!baseUrl) return;
+
+        const apiKey = await vscode.window.showInputBox({
+            prompt: 'Enter the API key',
+            placeHolder: 'your-api-key-here',
+            password: true
+        });
+        
+        if (!apiKey) return;
+
+        const description = await vscode.window.showInputBox({
+            prompt: 'Enter an optional description',
+            placeHolder: 'Optional description'
+        });
+
+        try {
+            const account = {
+                id: `account_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                name: accountName,
+                apiKey: apiKey,
+                baseUrl: baseUrl,
+                description: description || ''
+            };
+
+            await settingsManager.createThirdPartyProvider(providerName, account);
+            vscode.window.showInformationMessage(`Third party provider "${providerName}" added successfully!`);
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to add provider: ${(error as Error).message}`);
+        }
+    });
+
+    // 选择活动AI提供方命令
+    const selectActiveProviderCommand = vscode.commands.registerCommand('cc-copilot.selectActiveProvider', async () => {
+        const options = settingsManager.getAllProviderOptions();
+        
+        if (options.length === 0) {
+            vscode.window.showInformationMessage('No AI providers configured. Please add a third-party provider or configure Claude Official first.');
+            return;
+        }
+
+        const currentActiveId = settingsManager.getCurrentActiveCompositeId();
+        
+        const quickPickItems = options.map(option => ({
+            label: option.label,
+            description: option.description,
+            detail: option.id === currentActiveId ? '• Currently Active' : '',
+            id: option.id
+        }));
+
+        const selected = await vscode.window.showQuickPick(quickPickItems, {
+            placeHolder: 'Select an AI provider to activate'
+        });
+
+        if (selected) {
+            try {
+                await settingsManager.setActiveProviderByCompositeId(selected.id);
+                vscode.window.showInformationMessage(`Active provider set to: ${selected.label}`);
+            } catch (error) {
+                vscode.window.showErrorMessage(`Failed to set active provider: ${(error as Error).message}`);
+            }
+        }
     });
 
     // 注册所有命令
@@ -124,7 +208,9 @@ export function activate(context: vscode.ExtensionContext) {
         openSessionCommand,
         deleteSessionCommand,
         syncWithClaudeCommand,
-        openSettingsCommand
+        openSettingsCommand,
+        addThirdPartyProviderCommand,
+        selectActiveProviderCommand
     );
     
     // 监听工作区变化

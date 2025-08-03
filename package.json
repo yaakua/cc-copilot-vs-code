@@ -70,6 +70,16 @@
         "command": "cc-copilot.openSettings",
         "title": "Open Settings",
         "icon": "$(settings-gear)"
+      },
+      {
+        "command": "cc-copilot.addThirdPartyProvider",
+        "title": "Add Third Party AI Provider",
+        "icon": "$(add)"
+      },
+      {
+        "command": "cc-copilot.selectActiveProvider",
+        "title": "Select Active AI Provider",
+        "icon": "$(account)"
       }
     ],
     "menus": {
@@ -93,6 +103,16 @@
           "command": "cc-copilot.openSettings",
           "when": "view == claude-sessions-view",
           "group": "navigation@2"
+        },
+        {
+          "command": "cc-copilot.addThirdPartyProvider",
+          "when": "view == claude-sessions-view",
+          "group": "navigation@3"
+        },
+        {
+          "command": "cc-copilot.selectActiveProvider",
+          "when": "view == claude-sessions-view",
+          "group": "navigation@4"
         }
       ],
       "view/item/context": [
@@ -150,12 +170,93 @@
         "ccCopilot.serviceProviders": {
           "type": "array",
           "default": [],
-          "description": "Service providers configuration"
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique identifier for the service provider"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["claude_official", "third_party"],
+                "description": "Type of service provider"
+              },
+              "name": {
+                "type": "string",
+                "description": "Display name for the service provider"
+              },
+              "accounts": {
+                "type": "array",
+                "description": "List of accounts for this provider",
+                "items": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "title": "Third Party Account",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "description": "Account unique identifier"
+                        },
+                        "name": {
+                          "type": "string",
+                          "description": "Account display name"
+                        },
+                        "apiKey": {
+                          "type": "string",
+                          "description": "API key for authentication"
+                        },
+                        "baseUrl": {
+                          "type": "string",
+                          "format": "uri",
+                          "description": "Base URL for the API endpoint"
+                        },
+                        "description": {
+                          "type": "string",
+                          "description": "Optional description for the account"
+                        }
+                      },
+                      "required": ["id", "name", "apiKey", "baseUrl"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "title": "Claude Official Account",
+                      "properties": {
+                        "accountUuid": {"type": "string"},
+                        "emailAddress": {"type": "string"},
+                        "organizationUuid": {"type": "string"},
+                        "organizationRole": {"type": "string"},
+                        "workspaceRole": {"type": ["string", "null"]},
+                        "organizationName": {"type": "string"},
+                        "authorization": {"type": "string"}
+                      },
+                      "required": ["accountUuid", "emailAddress", "organizationUuid", "organizationRole", "organizationName"],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "activeAccountId": {
+                "type": "string",
+                "description": "ID of the currently active account"
+              },
+              "useProxy": {
+                "type": "boolean",
+                "default": true,
+                "description": "Whether to use proxy configuration for this provider"
+              }
+            },
+            "required": ["id", "type", "name", "accounts", "activeAccountId", "useProxy"],
+            "additionalProperties": false
+          },
+          "markdownDescription": "**Service providers configuration**\n\nManage multiple AI service providers including Claude Official and third-party APIs. Each provider can have multiple accounts."
         },
         "ccCopilot.activeServiceProviderId": {
           "type": "string",
           "default": "",
-          "description": "Active service provider ID"
+          "markdownDescription": "**Active service provider ID**\n\nThe currently active AI service provider. Use the command palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and search for \"Select Active AI Provider\" to choose from available providers, or use the provider selection button in the CC Copilot sidebar."
         },
         "ccCopilot.terminal": {
           "type": "object",

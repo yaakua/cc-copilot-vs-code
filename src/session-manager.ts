@@ -16,20 +16,20 @@ interface StoreData {
 export class SessionManager {
   private storePath: string;
   private data: StoreData;
-  private settingsManager: SettingsManager | null = null;
-  private context: vscode.ExtensionContext;
+  private _settingsManager: SettingsManager | null = null;
+  private _context: vscode.ExtensionContext;
 
   constructor(context: vscode.ExtensionContext, settingsManager?: SettingsManager) {
-    this.context = context;
+    this._context = context;
     // 使用VSCode的globalStorageUri作为存储路径
     this.storePath = path.join(context.globalStorageUri.fsPath, 'session-store.json');
-    this.settingsManager = settingsManager || null;
+    this._settingsManager = settingsManager || null;
     this.data = this.load();
   }
 
   // 设置 SettingsManager（如果构造时没有传入）
   public setSettingsManager(settingsManager: SettingsManager): void {
-    this.settingsManager = settingsManager;
+    this._settingsManager = settingsManager;
   }
 
   private load(): StoreData {
