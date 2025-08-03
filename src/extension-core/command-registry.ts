@@ -95,5 +95,79 @@ export class CommandRegistry {
       }
     })
     this.context.subscriptions.push(showMoreActionsCommand)
+
+    // Show Account Menu command
+    const showAccountMenuCommand = vscode.commands.registerCommand('cc-copilot.showAccountMenu', async () => {
+      const items: vscode.QuickPickItem[] = [
+        {
+          label: '$(account) Select Active AI Provider',
+          description: 'Choose which AI provider to use',
+          detail: 'cc-copilot.selectActiveProvider'
+        },
+        {
+          label: '$(add) Add Third Party AI Provider',
+          description: 'Add a new third-party AI provider',
+          detail: 'cc-copilot.addThirdPartyProvider'
+        },
+        {
+          label: '$(search) Discover Claude Accounts',
+          description: 'Discover available Claude accounts',
+          detail: 'cc-copilot.discoverClaudeAccounts'
+        },
+        {
+          label: '$(sign-in) Login to Claude',
+          description: 'Login to Claude with a new account',
+          detail: 'cc-copilot.claudeLogin'
+        },
+        {
+          label: '$(refresh) Re-login Account',
+          description: 'Re-login an existing Claude account',
+          detail: 'cc-copilot.reloginAccount'
+        },
+        {
+          label: '$(settings-gear) Open Settings',
+          description: 'Open extension settings',
+          detail: 'cc-copilot.openSettings'
+        }
+      ]
+
+      const selected = await vscode.window.showQuickPick(items, {
+        placeHolder: 'Select an account management action',
+        title: 'Account Management'
+      })
+
+      if (selected && selected.detail) {
+        await vscode.commands.executeCommand(selected.detail)
+      }
+    })
+    this.context.subscriptions.push(showAccountMenuCommand)
+
+    // Add Account command
+    const addAccountCommand = vscode.commands.registerCommand('cc-copilot.addAccount', async () => {
+      const accountType = await vscode.window.showQuickPick([
+        {
+          label: '$(account) Claude Official',
+          description: 'Add a Claude.ai official account',
+          detail: 'claude'
+        },
+        {
+          label: '$(link-external) Third Party API',
+          description: 'Add a third-party API provider',
+          detail: 'third-party'
+        }
+      ], {
+        placeHolder: 'Select account type to add',
+        title: 'Add New Account'
+      })
+
+      if (accountType) {
+        if (accountType.detail === 'claude') {
+          await vscode.commands.executeCommand('cc-copilot.claudeLogin')
+        } else if (accountType.detail === 'third-party') {
+          await vscode.commands.executeCommand('cc-copilot.addThirdPartyProvider')
+        }
+      }
+    })
+    this.context.subscriptions.push(addAccountCommand)
   }
 }
