@@ -128,7 +128,15 @@ export class SessionManager {
     const workspacePaths = workspaceFolders.map(folder => folder.uri.fsPath);
     
     return this.getProjects().filter(project => 
-      workspacePaths.some(wsPath => project.path.startsWith(wsPath))
+      workspacePaths.some(wsPath => {
+        // Normalize paths to handle different separators
+        const normalizedProjectPath = project.path.replace(/\\/g, '/');
+        const normalizedWsPath = wsPath.replace(/\\/g, '/');
+        
+        // Check if project path is exactly the workspace path or is a subdirectory
+        return normalizedProjectPath === normalizedWsPath || 
+               normalizedProjectPath.startsWith(normalizedWsPath + '/');
+      })
     );
   }
 

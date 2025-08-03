@@ -42,8 +42,8 @@ export class ClaudeSessionProvider implements vscode.TreeDataProvider<ClaudeSess
 
     private getProjects(): ClaudeSessionItem[] {
         try {
-            const projects = this.sessionManager.getProjects();
-            logger.debug(`Found ${projects.length} projects`, 'ClaudeSessionProvider');
+            const projects = this.sessionManager.getWorkspaceProjects();
+            logger.debug(`Found ${projects.length} workspace projects`, 'ClaudeSessionProvider');
             
             return projects.map(project => {
                 const sessions = this.sessionManager.getSessions(project.id);
