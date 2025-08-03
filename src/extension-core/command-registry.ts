@@ -7,11 +7,27 @@ import { SessionCommands } from './session-commands'
 import { ProviderCommands } from './provider-commands'
 import { AccountCommands } from './account-commands'
 
+/**
+ * 命令注册器类
+ * 负责注册和管理扩展的所有VSCode命令
+ * 将命令按功能分组到不同的命令处理器中
+ */
 export class CommandRegistry {
+  /** 会话相关命令处理器 */
   private sessionCommands: SessionCommands
+  /** 服务提供商相关命令处理器 */
   private providerCommands: ProviderCommands
+  /** 账号相关命令处理器 */
   private accountCommands: AccountCommands
 
+  /**
+   * 构造函数
+   * @param context - VSCode扩展上下文
+   * @param settingsManager - 设置管理器
+   * @param sessionManager - 会话管理器
+   * @param terminalService - 终端服务
+   * @param sessionProvider - 会话树形视图提供器
+   */
   constructor(
     private context: vscode.ExtensionContext,
     private settingsManager: SettingsManager,
@@ -19,6 +35,7 @@ export class CommandRegistry {
     private terminalService: TerminalService,
     private sessionProvider: ClaudeSessionProvider
   ) {
+    // 初始化会话命令处理器
     this.sessionCommands = new SessionCommands(
       context,
       settingsManager,
@@ -26,12 +43,14 @@ export class CommandRegistry {
       terminalService,
       sessionProvider
     )
-    
+
+    // 初始化服务提供商命令处理器
     this.providerCommands = new ProviderCommands(
       context,
       settingsManager
     )
-    
+
+    // 初始化账号命令处理器
     this.accountCommands = new AccountCommands(
       context,
       settingsManager,
@@ -39,18 +58,23 @@ export class CommandRegistry {
     )
   }
 
+  /**
+   * 注册所有命令
+   * 调用各个命令处理器的注册方法，并注册通用命令
+   */
   registerAllCommands(): void {
+    // 注册各类命令
     this.sessionCommands.registerCommands()
     this.providerCommands.registerCommands()
     this.accountCommands.registerCommands()
 
-    // Settings command
+    // 注册设置命令
     const openSettingsCommand = vscode.commands.registerCommand('cc-copilot.openSettings', () => {
       vscode.commands.executeCommand('workbench.action.openSettings', 'ccCopilot')
     })
     this.context.subscriptions.push(openSettingsCommand)
 
-    // More Actions dropdown command
+    // 注册更多操作下拉菜单命令
     const showMoreActionsCommand = vscode.commands.registerCommand('cc-copilot.showMoreActions', async () => {
       const items: vscode.QuickPickItem[] = [
         {
@@ -75,18 +99,20 @@ export class CommandRegistry {
         }
       ]
 
+      // 显示快速选择菜单
       const selected = await vscode.window.showQuickPick(items, {
         placeHolder: 'Select an action to perform',
         title: 'Claude Copilot Actions'
       })
 
+      // 执行选中的命令
       if (selected && selected.detail) {
         await vscode.commands.executeCommand(selected.detail)
       }
     })
     this.context.subscriptions.push(showMoreActionsCommand)
 
-    // Show Account Menu command
+    // 注册账号菜单命令
     const showAccountMenuCommand = vscode.commands.registerCommand('cc-copilot.showAccountMenu', async () => {
       const items: vscode.QuickPickItem[] = [
         {
@@ -121,19 +147,22 @@ export class CommandRegistry {
         }
       ]
 
+      // 显示账号管理快速选择菜单
       const selected = await vscode.window.showQuickPick(items, {
         placeHolder: 'Select an account management action',
         title: 'Account Management'
       })
 
+      // 执行选中的账号管理命令
       if (selected && selected.detail) {
         await vscode.commands.executeCommand(selected.detail)
       }
     })
     this.context.subscriptions.push(showAccountMenuCommand)
 
-    // Add Account command
+    // 注册添加账号命令
     const addAccountCommand = vscode.commands.registerCommand('cc-copilot.addAccount', async () => {
+      // 显示账号类型选择菜单
       const accountType = await vscode.window.showQuickPick([
         {
           label: '$(account) Claude Official',
@@ -150,10 +179,13 @@ export class CommandRegistry {
         title: 'Add New Account'
       })
 
+      // 根据选择的账号类型执行相应的命令
       if (accountType) {
         if (accountType.detail === 'claude') {
+          // 执行Claude官方账号登录命令
           await vscode.commands.executeCommand('cc-copilot.claudeLogin')
         } else if (accountType.detail === 'third-party') {
+          // 执行添加第三方提供商命令
           await vscode.commands.executeCommand('cc-copilot.addThirdPartyProvider')
         }
       }

@@ -191,8 +191,8 @@ export class ClaudeSessionProvider implements vscode.TreeDataProvider<ClaudeSess
                     currentActive.provider.type === 'claude_official' && 
                     (currentActive.account as any).emailAddress === account.emailAddress;
 
-                const baseLabel = `${account.emailAddress}`;
-                const label = isActive ? `✓ ${baseLabel}` : baseLabel;
+                const label = `${account.emailAddress}`;
+                // const label = isActive ? `✓ ${baseLabel}` : baseLabel;
                 const description = '🔸 Claude Official';
                 
                 // 只有选中的账号才显示图标

@@ -66,13 +66,13 @@ export class ClaudeAccountManager extends EventEmitter {
     claudeProvider.accounts = updatedAccounts
 
     // 确保活动账号ID仍然有效
-    if (claudeProvider.activeAccountId) {
-      const activeAccountExists = updatedAccounts.find(acc => acc.emailAddress === claudeProvider.activeAccountId)
+    if (claudeProvider?.activeAccountId) {
+      const activeAccountExists = updatedAccounts.find(acc => acc.emailAddress === claudeProvider!.activeAccountId)
       if (!activeAccountExists && updatedAccounts.length > 0) {
         claudeProvider.activeAccountId = updatedAccounts[0].emailAddress
         console.log(`🎯 重置活动账号为: ${claudeProvider.activeAccountId}`)
       }
-    } else if (updatedAccounts.length > 0) {
+    } else if (updatedAccounts.length > 0 && claudeProvider) {
       claudeProvider.activeAccountId = updatedAccounts[0].emailAddress
       console.log(`🎯 设置默认活动账号为: ${claudeProvider.activeAccountId}`)
     }

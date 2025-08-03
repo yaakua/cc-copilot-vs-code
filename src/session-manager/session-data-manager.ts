@@ -87,25 +87,29 @@ export class SessionDataManager {
    */
   deleteSession(sessionId: string): void {
     const data = this.getData()
-    // 找到要删除的会话
+
+    // 找到要删除的会话对象
     const sessionToDelete = data.sessions.find(s => s.id === sessionId)
-    
-    // 如果会话有文件路径，删除对应的文件
+
+    // 如果会话关联了文件路径，需要同时删除物理文件
     if (sessionToDelete?.filePath) {
       try {
         const fs = require('fs')
+        // 检查文件是否存在，避免删除不存在的文件时报错
         if (fs.existsSync(sessionToDelete.filePath)) {
+          // 同步删除会话关联的文件
           fs.unlinkSync(sessionToDelete.filePath)
-          console.log(`Deleted session file: ${sessionToDelete.filePath}`)
+          console.log(`已删除会话文件: ${sessionToDelete.filePath}`)
         }
       } catch (error) {
-        console.error(`Failed to delete session file: ${sessionToDelete.filePath}`, error)
+        // 文件删除失败时记录错误，但不阻止会话数据的删除
+        console.error(`删除会话文件失败: ${sessionToDelete.filePath}`, error)
       }
     }
-    
-    // 过滤掉要删除的会话
+
+    // 从会话列表中过滤掉要删除的会话
     data.sessions = data.sessions.filter(s => s.id !== sessionId)
-    // 持久化数据变更
+    // 持久化数据变更到存储
     this.saveData(data)
   }
 
