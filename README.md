@@ -66,7 +66,6 @@ A VS Code extension that provides a graphical interface for managing Claude CLI 
 |---------|-------------|---------|
 | `claudeCompanion.proxyConfig` | Proxy configuration for API requests | `{"enabled": false, "url": "http://127.0.0.1:1087"}` |
 | `claudeCompanion.terminal.skipPermissions` | Skip permission checks when creating sessions | `true` |
-| `claudeCompanion.projectFilter.hiddenDirectories` | Directories to hide from project list | Common build/cache directories |
 
 ## Troubleshooting
 

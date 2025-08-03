@@ -63,10 +63,6 @@ export interface AppSettings {
     skipPermissions: boolean
   }
 
-  // 项目过滤配置
-  projectFilter: {
-    hiddenDirectories: string[] // 要在项目列表中隐藏的目录名列表
-  }
 }
 
 const defaultSettings: AppSettings = {
@@ -86,31 +82,6 @@ const defaultSettings: AppSettings = {
     theme: 'dark',
     skipPermissions: true
   },
-  projectFilter: {
-    hiddenDirectories: [
-      '.git',
-      '.svn',
-      '.hg',
-      'node_modules',
-      '.DS_Store',
-      '.vscode',
-      '.idea',
-      'dist',
-      'build',
-      '.next',
-      '.nuxt',
-      'coverage',
-      '.nyc_output',
-      'tmp',
-      'temp',
-      '.cache',
-      '.parcel-cache',
-      '.env.local',
-      '.env.development.local',
-      '.env.test.local',
-      '.env.production.local'
-    ]
-  }
 }
 
 export class SettingsManager extends EventEmitter {
@@ -139,8 +110,7 @@ export class SettingsManager extends EventEmitter {
       activeProviderId: config.get('activeProviderId', defaultSettings.activeProviderId),
       serviceProviders: config.get('serviceProviders', defaultSettings.serviceProviders),
       activeServiceProviderId: config.get('activeServiceProviderId', defaultSettings.activeServiceProviderId),
-      terminal: config.get('terminal', defaultSettings.terminal),
-      projectFilter: config.get('projectFilter', defaultSettings.projectFilter)
+      terminal: config.get('terminal', defaultSettings.terminal)
     }
   }
 
@@ -415,37 +385,6 @@ export class SettingsManager extends EventEmitter {
     return accounts.find(acc => acc.authorization === authorization) || null
   }
 
-  // 获取项目过滤配置
-  getProjectFilterConfig() {
-    const config = vscode.workspace.getConfiguration(this.configurationSection)
-    return config.get('projectFilter', defaultSettings.projectFilter)
-  }
-
-  // 更新项目过滤配置
-  async updateProjectFilterConfig(projectFilterConfig: Partial<AppSettings['projectFilter']>): Promise<void> {
-    const config = vscode.workspace.getConfiguration(this.configurationSection)
-    const current = this.getProjectFilterConfig()
-    const updated = { ...current, ...projectFilterConfig }
-    
-    await config.update('projectFilter', updated, vscode.ConfigurationTarget.Global)
-    this.emit('project-filter:updated', updated)
-  }
-
-  // 检查目录是否应该被隐藏
-  shouldHideDirectory(directoryPath: string): boolean {
-    const config = this.getProjectFilterConfig()
-    const directoryName = require('path').basename(directoryPath)
-
-    // 检查是否在隐藏列表中
-    return config.hiddenDirectories.includes(directoryName) ||
-      config.hiddenDirectories.some((pattern: string) => {
-        // 支持简单的模式匹配，以点开头的目录
-        if (pattern.startsWith('.') && directoryName.startsWith('.')) {
-          return directoryName === pattern
-        }
-        return directoryName === pattern
-      })
-  }
 
   // 获取终端配置
   getTerminalConfig() {

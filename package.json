@@ -1,9 +1,9 @@
 {
-  "name": "claude-cli-companion",
-  "displayName": "Claude CLI Companion",
-  "description": "A companion for managing Claude CLI sessions in VS Code",
+  "name": "cc-copilot",
+  "displayName": "CC Copilot",
+  "description": "A VS Code extension for managing Claude CLI sessions and AI-powered development",
   "version": "0.0.1",
-  "publisher": "claude-companion",
+  "publisher": "cc-copilot",
   "engines": {
     "vscode": "^1.74.0"
   },
@@ -25,48 +25,49 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "claude-companion-sidebar",
-          "title": "Claude Companion",
+          "id": "cc-copilot-sidebar",
+          "title": "CC Copilot",
           "icon": "$(robot)"
         }
       ]
     },
     "views": {
-      "claude-companion-sidebar": [
+      "cc-copilot-sidebar": [
         {
           "id": "claude-sessions-view",
           "name": "Sessions",
-          "type": "tree"
+          "type": "tree",
+          "icon": "$(list-unordered)"
         }
       ]
     },
     "commands": [
       {
-        "command": "claude-companion.newSession",
+        "command": "cc-copilot.newSession",
         "title": "New Claude Session",
         "icon": "$(add)"
       },
       {
-        "command": "claude-companion.refreshSessions",
+        "command": "cc-copilot.refreshSessions",
         "title": "Refresh Sessions",
         "icon": "$(refresh)"
       },
       {
-        "command": "claude-companion.openSession",
+        "command": "cc-copilot.openSession",
         "title": "Open Session"
       },
       {
-        "command": "claude-companion.deleteSession",
+        "command": "cc-copilot.deleteSession",
         "title": "Delete Session",
         "icon": "$(trash)"
       },
       {
-        "command": "claude-companion.syncWithClaude",
+        "command": "cc-copilot.syncWithClaude",
         "title": "Sync with Claude Directory",
         "icon": "$(sync)"
       },
       {
-        "command": "claude-companion.openSettings",
+        "command": "cc-copilot.openSettings",
         "title": "Open Settings",
         "icon": "$(settings-gear)"
       }
@@ -74,94 +75,153 @@
     "menus": {
       "view/title": [
         {
-          "command": "claude-companion.newSession",
+          "command": "cc-copilot.newSession",
           "when": "view == claude-sessions-view",
           "group": "navigation"
         },
         {
-          "command": "claude-companion.refreshSessions",
+          "command": "cc-copilot.refreshSessions",
           "when": "view == claude-sessions-view",
           "group": "navigation"
         },
         {
-          "command": "claude-companion.syncWithClaude",
+          "command": "cc-copilot.syncWithClaude",
           "when": "view == claude-sessions-view",
           "group": "navigation@1"
         },
         {
-          "command": "claude-companion.openSettings",
+          "command": "cc-copilot.openSettings",
           "when": "view == claude-sessions-view",
           "group": "navigation@2"
         }
       ],
       "view/item/context": [
         {
-          "command": "claude-companion.openSession",
+          "command": "cc-copilot.openSession",
           "when": "view == claude-sessions-view && viewItem == session",
           "group": "inline"
         },
         {
-          "command": "claude-companion.deleteSession",
+          "command": "cc-copilot.deleteSession",
           "when": "view == claude-sessions-view && viewItem == session",
           "group": "context"
         }
       ]
     },
     "configuration": {
-      "title": "Claude Companion",
+      "title": "CC Copilot",
       "properties": {
-        "claudeCompanion.proxyConfig": {
+        "ccCopilot.proxyConfig": {
           "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false,
+              "description": "Enable proxy for API requests"
+            },
+            "url": {
+              "type": "string",
+              "default": "http://127.0.0.1:1087",
+              "format": "uri",
+              "pattern": "^https?://.*",
+              "patternErrorMessage": "Must be a valid HTTP or HTTPS URL",
+              "description": "Proxy server URL"
+            },
+            "username": {
+              "type": "string",
+              "default": "",
+              "description": "Proxy authentication username (optional)"
+            },
+            "password": {
+              "type": "string",
+              "default": "",
+              "description": "Proxy authentication password (optional)"
+            }
+          },
+          "additionalProperties": false,
           "default": {
             "enabled": false,
-            "url": "http://127.0.0.1:1087"
+            "url": "http://127.0.0.1:1087",
+            "username": "",
+            "password": ""
           },
-          "description": "Proxy configuration for Claude API requests"
+          "markdownDescription": "**Proxy configuration** for Claude API requests. Enable to route requests through a proxy server."
         },
-        "claudeCompanion.serviceProviders": {
+        "ccCopilot.serviceProviders": {
           "type": "array",
           "default": [],
           "description": "Service providers configuration"
         },
-        "claudeCompanion.activeServiceProviderId": {
+        "ccCopilot.activeServiceProviderId": {
           "type": "string",
           "default": "",
           "description": "Active service provider ID"
         },
-        "claudeCompanion.terminal": {
+        "ccCopilot.terminal": {
           "type": "object",
+          "properties": {
+            "fontSize": {
+              "type": "number",
+              "default": 14,
+              "minimum": 8,
+              "maximum": 48,
+              "description": "Terminal font size (8-48px)"
+            },
+            "fontFamily": {
+              "type": "string",
+              "default": "Monaco, Consolas, monospace",
+              "enum": [
+                "Monaco, Consolas, monospace",
+                "Courier New, monospace",
+                "Source Code Pro, monospace",
+                "Fira Code, monospace",
+                "JetBrains Mono, monospace"
+              ],
+              "enumItemLabels": [
+                "Monaco/Consolas",
+                "Courier New",
+                "Source Code Pro", 
+                "Fira Code",
+                "JetBrains Mono"
+              ],
+              "description": "Terminal font family"
+            },
+            "theme": {
+              "type": "string",
+              "default": "dark",
+              "enum": ["dark", "light"],
+              "enumItemLabels": ["Dark Theme", "Light Theme"],
+              "enumDescriptions": [
+                "Dark theme optimized for low-light environments",
+                "Light theme suitable for bright environments"
+              ],
+              "description": "Terminal color theme"
+            },
+            "skipPermissions": {
+              "type": "boolean",
+              "default": true,
+              "markdownDescription": "Skip permission checks for terminal operations. **Warning**: This may reduce security."
+            }
+          },
+          "additionalProperties": false,
           "default": {
             "fontSize": 14,
             "fontFamily": "Monaco, Consolas, monospace",
             "theme": "dark",
             "skipPermissions": true
           },
-          "description": "Terminal configuration"
+          "markdownDescription": "**Terminal configuration** for Claude CLI sessions"
         },
-        "claudeCompanion.projectFilter": {
-          "type": "object",
-          "default": {
-            "hiddenDirectories": [
-              ".git",
-              ".svn",
-              ".hg",
-              "node_modules",
-              ".DS_Store",
-              ".vscode",
-              ".idea",
-              "dist",
-              "build",
-              ".next",
-              ".nuxt",
-              "coverage",
-              ".nyc_output",
-              "tmp",
-              "temp",
-              ".cache",
-              ".parcel-cache"
-            ]
-          },
-          "description": "Project filtering configuration"
+        "ccCopilot.defaultProviderType": {
+          "type": "string",
+          "enum": ["claude_official", "third_party"],
+          "enumItemLabels": ["Claude Official", "Third Party API"],
+          "enumDescriptions": [
+            "Use official Claude.ai account with browser authentication",
+            "Use third-party API service with custom API keys"
+          ],
+          "default": "claude_official",
+          "markdownDescription": "**Default service provider type** for new configurations"
         }
       }
     }
