@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { claudePathManager } from './claude-path-manager';
 import { SettingsManager } from './settings';
+import { SessionManager } from './session-manager';
 import { logger } from './logger';
 
 /**
@@ -14,10 +15,12 @@ export class TerminalService {
      * 构造函数
      * @param context - VSCode扩展上下文
      * @param settingsManager - 设置管理器实例
+     * @param sessionManager - 会话管理器实例
      */
     constructor(
         private context: vscode.ExtensionContext,
-        private settingsManager: SettingsManager
+        private settingsManager: SettingsManager,
+        private sessionManager?: SessionManager
     ) {}
 
     /**
@@ -48,9 +51,13 @@ export class TerminalService {
             // 为简化操作，始终跳过权限检查
             args.push('--dangerously-skip-permissions');
 
+            // 生成会话名称（基于当前时间）
+            const now = new Date();
+            const sessionName = `Claude ${now.getMonth() + 1}-${now.getDate()} ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+            
             // 创建终端实例
             const terminal = vscode.window.createTerminal({
-                name: 'Claude Session',
+                name: sessionName,
                 cwd: cwd,
                 env: this.getClaudeEnvironment()
             });
@@ -96,15 +103,23 @@ export class TerminalService {
             // 从文件路径提取会话ID（去除.jsonl扩展名）
             const sessionId = path.basename(sessionFilePath, '.jsonl');
 
+            // 尝试从会话管理器获取会话名称
+            let sessionDisplayName = sessionId;
+            if (this.sessionManager) {
+                const session = this.sessionManager.getSessionById(sessionId);
+                if (session) {
+                    sessionDisplayName = session.name;
+                }
+            }
+
             // 构建Claude恢复命令参数
             const args = ['--resume', sessionId];
             // 为简化操作，始终跳过权限检查
             args.push('--dangerously-skip-permissions');
 
-            // 创建终端实例，使用会话ID作为名称
-            const sessionName = sessionId;
+            // 创建终端实例，使用会话名称作为标题
             const terminal = vscode.window.createTerminal({
-                name: `Claude: ${sessionName}`,
+                name: `Claude: ${sessionDisplayName}`,
                 cwd: cwd,
                 env: this.getClaudeEnvironment()
             });
@@ -181,15 +196,17 @@ export class TerminalService {
 
     /**
      * 获取Claude运行环境变量
+     * 配置Claude CLI运行时需要的环境变量，包括代理设置
+     * @returns 配置好的环境变量对象
      */
     private getClaudeEnvironment(): NodeJS.ProcessEnv {
         const env = { ...process.env };
-        
+
         // 如果启用了代理，设置代理环境变量
         const proxyConfig = this.settingsManager.getProxyConfig();
         if (proxyConfig.enabled && proxyConfig.url) {
             let proxyUrl = proxyConfig.url;
-            
+
             // 如果有认证信息，添加到URL中
             if (proxyConfig.auth?.username && proxyConfig.auth?.password) {
                 try {
@@ -202,11 +219,13 @@ export class TerminalService {
                 }
             }
 
+            // 设置所有常见的代理环境变量
             env.HTTP_PROXY = proxyUrl;
             env.HTTPS_PROXY = proxyUrl;
             env.http_proxy = proxyUrl;
             env.https_proxy = proxyUrl;
-            
+
+            // 记录代理配置（隐藏认证信息）
             logger.info(`Proxy configured: ${proxyUrl.replace(/\/\/.*@/, '//***@')}`, 'TerminalService');
         }
 
@@ -215,6 +234,9 @@ export class TerminalService {
 
     /**
      * 从会话文件路径推断工作目录
+     * 尝试从会话文件中读取原始工作目录信息，如果失败则使用当前工作区
+     * @param sessionFilePath - 会话文件的完整路径
+     * @returns 推断出的工作目录路径
      */
     private inferWorkingDirectoryFromSession(sessionFilePath: string): string {
         try {
@@ -223,7 +245,8 @@ export class TerminalService {
             if (fs.existsSync(sessionFilePath)) {
                 const content = fs.readFileSync(sessionFilePath, 'utf-8');
                 const lines = content.split('\n').filter((line: string) => line.trim());
-                
+
+                // 逐行解析JSON，查找cwd字段
                 for (const line of lines as string[]) {
                     try {
                         const entry = JSON.parse(line);
@@ -240,13 +263,15 @@ export class TerminalService {
             logger.warn('Failed to read session file for cwd', 'TerminalService', error as Error);
         }
 
-        // 如果无法从会话文件中获取，使用当前工作区
+        // 如果无法从会话文件中获取，使用当前工作区作为后备方案
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
         return workspaceFolder?.uri.fsPath || process.cwd();
     }
 
     /**
      * 检查Claude CLI是否可用
+     * 检测系统中是否安装了Claude CLI工具
+     * @returns 如果Claude CLI可用返回true，否则返回false
      */
     public async checkClaudeAvailability(): Promise<boolean> {
         try {
@@ -260,6 +285,8 @@ export class TerminalService {
 
     /**
      * 获取Claude CLI信息
+     * 获取Claude CLI的安装路径和版本信息
+     * @returns Claude CLI信息对象，包含路径和版本；如果未找到则返回null
      */
     public async getClaudeInfo(): Promise<{ path: string; version?: string } | null> {
         try {
@@ -277,12 +304,131 @@ export class TerminalService {
     }
 
     /**
+     * 创建隐藏的Claude测试会话
+     * 用于验证账号token是否有效，通过发送简单消息触发拦截器获取token
+     * @param testMessage - 测试消息，默认为"hi"
+     * @returns Promise<boolean> - 是否成功获取到token
+     */
+    public async createHiddenTestSession(testMessage: string = 'hi'): Promise<boolean> {
+        try {
+            logger.info('🔍 Creating hidden test session to verify account token...', 'TerminalService');
+
+            // 记录当前活动账号状态
+            const currentAccount = this.settingsManager.getCurrentActiveAccount();
+            if (currentAccount) {
+                const account = currentAccount.account as any;
+                logger.info(`📋 Current active account: ${account.emailAddress || account.name}`, 'TerminalService');
+                logger.info(`🔑 Current token status: ${account.authorization ? 'Has token' : 'No token'}`, 'TerminalService');
+                if (account.authorization) {
+                    logger.info(`🔑 Token preview: ${account.authorization.substring(0, 20)}...`, 'TerminalService');
+                }
+            } else {
+                logger.warn('⚠️ No active account found', 'TerminalService');
+                return false;
+            }
+
+            // 检测Claude CLI路径
+            const claudePath = await claudePathManager.getClaudePath();
+            if (!claudePath) {
+                logger.error('❌ Claude CLI not found', 'TerminalService');
+                return false;
+            }
+            logger.info(`✅ Claude CLI found at: ${claudePath}`, 'TerminalService');
+
+            // 检查Claude CLI配置文件
+            const os = require('os');
+            const path = require('path');
+            const fs = require('fs');
+            const claudeConfigPath = path.join(os.homedir(), '.anthropic', 'claude-cli', 'config.json');
+            
+            if (fs.existsSync(claudeConfigPath)) {
+                try {
+                    const configContent = fs.readFileSync(claudeConfigPath, 'utf-8');
+                    const config = JSON.parse(configContent);
+                    logger.info(`📁 Claude CLI config exists`, 'TerminalService');
+                    logger.info(`📧 CLI config account: ${config.account?.email || 'none'}`, 'TerminalService');
+                    logger.info(`🔑 CLI config has session_key: ${!!config.account?.session_key}`, 'TerminalService');
+                } catch (error) {
+                    logger.warn('⚠️ Failed to read Claude CLI config', 'TerminalService');
+                }
+            } else {
+                logger.warn(`⚠️ Claude CLI config not found at: ${claudeConfigPath}`, 'TerminalService');
+            }
+
+            // 获取工作目录
+            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+            const cwd = workspaceFolder?.uri.fsPath || process.cwd();
+            logger.info(`📂 Working directory: ${cwd}`, 'TerminalService');
+
+            // 构建Claude命令参数
+            const args = [''];
+            args.push('--dangerously-skip-permissions');
+
+            // 创建隐藏终端（不显示在UI中）
+            const terminal = vscode.window.createTerminal({
+                name: 'Claude Token Test (Hidden)',
+                cwd: cwd,
+                env: this.getClaudeEnvironment(),
+                hideFromUser: true // 隐藏终端
+            });
+
+            // 执行Claude命令
+            const command = `"${claudePath}" ${args.join(' ')}`;
+            logger.info(`🚀 Executing hidden test command: ${command}`, 'TerminalService');
+            terminal.sendText(command);
+
+            // 等待Claude启动后发送测试消息
+            logger.info('⏳ Waiting 3 seconds for Claude to start...', 'TerminalService');
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            logger.info(`💬 Sending test message: "${testMessage}"`, 'TerminalService');
+            terminal.sendText(testMessage);
+
+            // 等待拦截器捕获token
+            let attempts = 0;
+            const maxAttempts = 15; // 增加等待时间到15秒
+            
+            logger.info(`⏱️ Waiting for token capture (max ${maxAttempts} seconds)...`, 'TerminalService');
+            
+            while (attempts < maxAttempts) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                attempts++;
+
+                // 检查当前账号是否已获取到token
+                const currentAccount = this.settingsManager.getCurrentActiveAccount();
+                if (currentAccount && currentAccount.account) {
+                    const account = currentAccount.account as any;
+                    if (account.authorization) {
+                        logger.info(`✅ Token successfully obtained through test session! (attempt ${attempts}/${maxAttempts})`, 'TerminalService');
+                        logger.info(`🔑 New token preview: ${account.authorization.substring(0, 20)}...`, 'TerminalService');
+                        terminal.dispose(); // 清理隐藏终端
+                        return true;
+                    }
+                }
+                
+                if (attempts % 3 === 0) {
+                    logger.info(`⏳ Still waiting for token... (${attempts}/${maxAttempts})`, 'TerminalService');
+                }
+            }
+
+            logger.warn(`⚠️ Failed to obtain token through test session after ${maxAttempts} seconds`, 'TerminalService');
+            terminal.dispose(); // 清理隐藏终端
+            return false;
+
+        } catch (error) {
+            logger.error('❌ Failed to create hidden test session', 'TerminalService', error as Error);
+            return false;
+        }
+    }
+
+    /**
      * 执行Claude login命令
+     * 在终端中启动Claude CLI的登录流程，用户需要按照终端提示完成认证
      */
     public async executeClaudeLogin(): Promise<void> {
         try {
             logger.info('Executing Claude login...', 'TerminalService');
-            
+
             // 检测Claude CLI路径
             const claudePath = await claudePathManager.getClaudePath();
             if (!claudePath) {
@@ -298,29 +444,29 @@ export class TerminalService {
             const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
             const cwd = workspaceFolder?.uri.fsPath || process.cwd();
 
-            // 创建终端
+            // 创建专用的登录终端
             const terminal = vscode.window.createTerminal({
                 name: 'Claude Login',
                 cwd: cwd,
                 env: this.getClaudeEnvironment()
             });
 
-            // 显示终端
+            // 显示终端窗口
             terminal.show();
 
-            // 执行Claude login命令
-            const command = `"${claudePath}" login`;
+            // 执行Claude /login命令
+            const command = `"${claudePath}" /login`;
             logger.info(`Executing command: ${command}`, 'TerminalService');
             terminal.sendText(command);
 
-            // 提示用户
+            // 向用户显示友好提示
             vscode.window.showInformationMessage(
                 'Claude login initiated. Please follow the instructions in the terminal to complete the login process.',
                 'OK'
             );
 
             logger.info('Claude login command executed successfully', 'TerminalService');
-            
+
         } catch (error) {
             const message = `Failed to execute Claude login: ${(error as Error).message}`;
             logger.error(message, 'TerminalService', error as Error);

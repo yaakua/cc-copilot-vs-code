@@ -1,22 +1,45 @@
 {
   "name": "cc-copilot",
   "displayName": "CC Copilot",
-  "description": "A VS Code extension for managing Claude Code CLI sessions and Quickly switch accounts.",
-  "version": "0.0.1",
+  "description": "A VS Code extension for managing Claude Code CLI sessions and quickly switching between AI accounts",
+  "version": "0.1.0",
   "publisher": "cc-copilot",
+  "author": {
+    "name": "CC Copilot Team"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/your-username/cc-copilot-vs-code#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/cc-copilot-vs-code.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/cc-copilot-vs-code/issues"
+  },
+  "icon": "src/cc-copilot-icon1024.png",
   "engines": {
     "vscode": "^1.74.0"
   },
   "categories": [
+    "Machine Learning",
     "Other"
   ],
   "keywords": [
     "claude",
     "ai",
+    "artificial intelligence",
     "terminal",
     "session",
-    "companion"
+    "companion",
+    "copilot",
+    "anthropic",
+    "code assistant",
+    "third party ai"
   ],
+  "galleryBanner": {
+    "color": "#1e1e1e",
+    "theme": "dark"
+  },
   "activationEvents": [
     "onStartupFinished"
   ],
@@ -110,6 +133,15 @@
         "command": "cc-copilot.addAccount",
         "title": "Add Account",
         "icon": "$(add)"
+      },
+      {
+        "command": "cc-copilot.refreshAccounts",
+        "title": "Refresh Accounts",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "cc-copilot.selectAccount",
+        "title": "Select Account"
       }
     ],
     "menus": {
@@ -185,6 +217,11 @@
           "command": "cc-copilot.reloginAccount",
           "when": "view == claude-sessions-view && viewItem == accountSelector",
           "group": "context@5"
+        },
+        {
+          "command": "cc-copilot.refreshAccounts",
+          "when": "view == claude-sessions-view && viewItem == accountManagement",
+          "group": "inline"
         }
       ]
     },

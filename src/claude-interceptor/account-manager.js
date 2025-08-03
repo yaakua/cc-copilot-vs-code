@@ -17,19 +17,38 @@ class AccountManager {
      */
     getActiveAccountInfo() {
         try {
+            console.log(`[DEBUG] [Claude Interceptor] 🔍 Getting active account info...`);
             const settingsData = this.configManager.loadSettingsFromStore();
             if (settingsData) {
+                console.log(`[DEBUG] [Claude Interceptor] 📁 Settings data loaded successfully`);
+                console.log(`[DEBUG] [Claude Interceptor] 📋 Active service provider ID: ${settingsData.activeServiceProviderId}`);
+                
                 const activeResult = this.configManager.getCurrentActiveAccountFromSettings(settingsData);
                 if (activeResult) {
                     const { provider, account } = activeResult;
+                    console.log(`[DEBUG] [Claude Interceptor] 🔍 Found active account - Provider: ${provider.type}, Account: ${account.emailAddress || account.name}`);
 
                     if (provider.type === PROVIDER_TYPE_CLAUDE_OFFICIAL) {
-                        return {
+                        const accountInfo = {
                             type: PROVIDER_TYPE_CLAUDE_OFFICIAL,
                             emailAddress: account.emailAddress,
                             authorization: account.authorization
                         };
+                        
+                        console.log(`[DEBUG] [Claude Interceptor] 🔑 Claude account token status: ${account.authorization ? 'Has token' : 'No token'}`);
+                        if (account.authorization) {
+                            console.log(`[DEBUG] [Claude Interceptor] 🔑 Token preview: ${account.authorization.substring(0, 20)}...`);
+                        }
+                        
+                        // 如果新切换的账号没有token，尝试主动获取
+                        if (!account.authorization && account.emailAddress) {
+                            console.log(`[DEBUG] [Claude Interceptor] 🔄 New account without token, attempting to retrieve: ${account.emailAddress}`);
+                            this.attemptToRetrieveTokenForAccount(account.emailAddress);
+                        }
+                        
+                        return accountInfo;
                     } else {
+                        console.log(`[DEBUG] [Claude Interceptor] 🔶 Third-party account: ${account.name}`);
                         return {
                             type: PROVIDER_TYPE_THIRD_PARTY,
                             name: account.name,
@@ -39,12 +58,47 @@ class AccountManager {
                     }
                 }
             }
-            console.log('No available account found');
+            console.log('[DEBUG] [Claude Interceptor] ⚠️ No available account found');
             return null;
         } catch (error) {
-            console.warn('[SILENT] Unable to get account config:', error.message);
+            console.warn('[DEBUG] [Claude Interceptor] ❌ Unable to get account config:', error.message);
             return null;
         }
+    }
+
+    /**
+     * 尝试为账号获取token
+     * 通过检查Claude CLI的配置文件来获取已有的token
+     */
+    attemptToRetrieveTokenForAccount(emailAddress) {
+        try {
+            const os = require('os');
+            const path = require('path');
+            
+            // Claude CLI配置文件路径
+            const claudeConfigPath = path.join(os.homedir(), '.anthropic', 'claude-cli', 'config.json');
+            
+            if (fs.existsSync(claudeConfigPath)) {
+                const configContent = fs.readFileSync(claudeConfigPath, 'utf-8');
+                const config = JSON.parse(configContent);
+                
+                // 查找匹配的账号
+                if (config.account && config.account.email === emailAddress && config.account.session_key) {
+                    console.log(`[SILENT] [Claude Interceptor] Found existing token for account: ${emailAddress}`);
+                    
+                    // 构建authorization header
+                    const authorization = `Bearer ${config.account.session_key}`;
+                    
+                    // 更新配置
+                    this.updateAuthorizationInConfig(authorization);
+                    
+                    return authorization;
+                }
+            }
+        } catch (error) {
+            console.warn(`[SILENT] [Claude Interceptor] Failed to retrieve token for account ${emailAddress}:`, error.message);
+        }
+        return null;
     }
 
     /**
@@ -52,36 +106,81 @@ class AccountManager {
      */
     updateAuthorizationInConfig(authorization) {
         try {
+            console.log(`[DEBUG] [Claude Interceptor] 🔄 Updating authorization in config...`);
+            console.log(`[DEBUG] [Claude Interceptor] 🔑 Authorization preview: ${authorization.substring(0, 30)}...`);
+            
             const accountInfo = this.getActiveAccountInfo();
+            console.log(`[DEBUG] [Claude Interceptor] 📋 Current account info:`, accountInfo);
             
             // 检查当前账号的authorization是否需要更新
             if (!accountInfo?.authorization || accountInfo.authorization !== authorization) {
+                console.log(`[DEBUG] [Claude Interceptor] 🔄 Authorization needs update`);
+                
                 const settingsData = this.configManager.loadSettingsFromStore();
                 if (settingsData) {
+                    console.log(`[DEBUG] [Claude Interceptor] 📁 Settings loaded for authorization update`);
+                    
                     // 首先检查这个authorization是否已被其他Claude账号使用
                     const existingAccount = this.findClaudeAccountByAuthorization(settingsData, authorization);
                     
                     if (existingAccount) {
                         // 如果已存在该authorization的账号，切换到该账号
-                        console.log(`[SILENT] [Claude Interceptor] Found existing account for authorization: ${existingAccount.emailAddress}`);
+                        console.log(`[DEBUG] [Claude Interceptor] ✅ Found existing account for authorization: ${existingAccount.emailAddress}`);
                         this.switchToExistingAccount(settingsData, existingAccount.emailAddress);
                         return;
                     }
 
                     // 如果当前有账号配置，更新其authorization
                     if (accountInfo?.emailAddress) {
-                        console.log(`[SILENT] [Claude Interceptor] Updating authorization for account: ${accountInfo.emailAddress}`);
+                        console.log(`[DEBUG] [Claude Interceptor] 💾 Updating authorization for account: ${accountInfo.emailAddress}`);
                         this.updateClaudeAccountAuthorization(settingsData, accountInfo.emailAddress, authorization);
-                        this.configManager.saveSettingsToStore(settingsData);
-                        console.log('[SILENT] [Claude Interceptor] Authorization saved to config file');
+                        const saveResult = this.configManager.saveSettingsToStore(settingsData);
+                        console.log(`[DEBUG] [Claude Interceptor] 💾 Save result: ${saveResult}`);
+                        console.log('[DEBUG] [Claude Interceptor] ✅ Authorization saved to config file');
+                        
+                        // 触发token更新通知，用于隐藏会话的token验证
+                        this.notifyTokenUpdate(accountInfo.emailAddress, authorization);
                     } else {
+                        console.log(`[DEBUG] [Claude Interceptor] 🔍 No current account email, identifying from authorization...`);
                         // 尝试从API请求中识别账号信息
                         this.identifyAccountFromAuthorization(authorization);
                     }
                 }
+            } else {
+                console.log(`[DEBUG] [Claude Interceptor] ✅ Authorization already up to date`);
             }
         } catch (error) {
-            console.error('[SILENT] [Claude Interceptor] Failed to save authorization:', error.message);
+            console.error('[DEBUG] [Claude Interceptor] ❌ Failed to save authorization:', error.message);
+        }
+    }
+
+    /**
+     * 通知token更新
+     * 用于通知扩展token已成功获取
+     */
+    notifyTokenUpdate(emailAddress, authorization) {
+        try {
+            const os = require('os');
+            const path = require('path');
+            
+            // 创建token更新通知文件
+            const tempDir = path.join(os.tmpdir(), 'cc-copilot');
+            if (!fs.existsSync(tempDir)) {
+                fs.mkdirSync(tempDir, { recursive: true });
+            }
+            
+            const tokenFile = path.join(tempDir, `token_${Date.now()}.json`);
+            const tokenData = {
+                emailAddress,
+                authorization,
+                timestamp: Date.now(),
+                type: 'token_update'
+            };
+            
+            fs.writeFileSync(tokenFile, JSON.stringify(tokenData));
+            console.log(`[SILENT] [Claude Interceptor] Token update notification created: ${tokenFile}`);
+        } catch (error) {
+            console.warn('[SILENT] [Claude Interceptor] Failed to create token notification:', error.message);
         }
     }
 
