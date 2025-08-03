@@ -263,9 +263,9 @@ export class ClaudeSessionItem extends vscode.TreeItem {
         // 为会话项目设置点击命令
         if (contextValue === 'session' && sessionId) {
             this.command = {
-                command: 'claude-companion.openSession',
+                command: 'cc-copilot.openSession',
                 title: 'Open Session',
-                arguments: [this]
+                arguments: [{ sessionId, session }]
             };
         }
         

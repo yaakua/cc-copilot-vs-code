@@ -15,6 +15,7 @@ export class SessionCommands {
 
   registerCommands(): void {
     this.registerNewSessionCommand()
+    this.registerNewSessionForProjectCommand()
     this.registerRefreshSessionsCommand()
     this.registerOpenSessionCommand()
     this.registerDeleteSessionCommand()
@@ -59,6 +60,70 @@ export class SessionCommands {
       }
     })
     this.context.subscriptions.push(newSessionCommand)
+  }
+
+  private registerNewSessionForProjectCommand(): void {
+    const newSessionForProjectCommand = vscode.commands.registerCommand('cc-copilot.newSessionForProject', async (item) => {
+      // 检查Claude CLI可用性
+      const isAvailable = await this.terminalService.checkClaudeAvailability()
+      if (!isAvailable) {
+        const result = await vscode.window.showErrorMessage(
+          'Claude CLI is not installed or not found in PATH.',
+          'Open Installation Guide'
+        )
+        if (result === 'Open Installation Guide') {
+          vscode.env.openExternal(vscode.Uri.parse('https://github.com/anthropics/claude-code'))
+        }
+        return
+      }
+
+      // 获取项目信息
+      let projectPath = ''
+      let projectName = 'Unknown'
+      
+      if (item && item.project) {
+        projectPath = item.project.path
+        projectName = item.project.name
+      } else {
+        // 如果没有传递项目信息，使用当前工作区
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0]
+        if (workspaceFolder) {
+          projectPath = workspaceFolder.uri.fsPath
+          projectName = workspaceFolder.name
+        }
+      }
+
+      // 选择会话类型
+      const sessionType = await vscode.window.showQuickPick([
+        {
+          label: 'Standard Session',
+          description: `Create a new Claude session for ${projectName}`,
+          detail: 'Basic Claude session without request interception'
+        },
+        {
+          label: 'Intercepted Session',
+          description: `Create a session with request monitoring for ${projectName}`,
+          detail: 'Advanced session with API request interception for account management'
+        }
+      ], {
+        placeHolder: `Select session type for ${projectName}`
+      })
+
+      if (!sessionType) return
+
+      // 根据选择创建会话
+      if (sessionType.label === 'Standard Session') {
+        await this.terminalService.createNewClaudeSession()
+      } else {
+        await this.terminalService.createClaudeSessionWithInterceptor()
+      }
+
+      // 刷新会话列表
+      setTimeout(() => {
+        this.sessionProvider.refresh()
+      }, 1000)
+    })
+    this.context.subscriptions.push(newSessionForProjectCommand)
   }
 
   private registerRefreshSessionsCommand(): void {

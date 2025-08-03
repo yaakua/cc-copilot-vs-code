@@ -45,12 +45,6 @@ export interface AppSettings {
   activeProviderId: string
   serviceProviders: ServiceProvider[]
   activeServiceProviderId: string
-  terminal: {
-    fontSize: number
-    fontFamily: string
-    theme: 'dark' | 'light'
-    skipPermissions: boolean
-  }
 }
 
 export const defaultSettings: AppSettings = {
@@ -61,11 +55,5 @@ export const defaultSettings: AppSettings = {
   apiProviders: [],
   activeProviderId: '',
   serviceProviders: [],
-  activeServiceProviderId: '',
-  terminal: {
-    fontSize: 14,
-    fontFamily: 'Monaco, Consolas, monospace',
-    theme: 'dark',
-    skipPermissions: true
-  },
+  activeServiceProviderId: ''
 }

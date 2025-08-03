@@ -34,7 +34,6 @@ export class SettingsManager extends EventEmitter {
     this.configManager.on('settings:updated', (settings) => this.emit('settings:updated', settings))
     this.configManager.on('proxy:config-updated', (config) => this.emit('proxy:config-updated', config))
     this.configManager.on('provider:changed', (providerId) => this.emit('provider:changed', providerId))
-    this.configManager.on('terminal:config-updated', (config) => this.emit('terminal:config-updated', config))
 
     this.serviceProviderManager.on('service-providers:updated', (providers) => this.emit('service-providers:updated', providers))
     this.serviceProviderManager.on('active-service-provider:changed', (providerId) => this.emit('active-service-provider:changed', providerId))
@@ -70,21 +69,6 @@ export class SettingsManager extends EventEmitter {
     return this.configManager.setActiveProvider(providerId)
   }
 
-  getTerminalConfig() {
-    return this.configManager.getTerminalConfig()
-  }
-
-  async updateTerminalConfig(terminalConfig: Partial<AppSettings['terminal']>): Promise<void> {
-    return this.configManager.updateTerminalConfig(terminalConfig)
-  }
-
-  getSkipPermissions(): boolean {
-    return this.configManager.getSkipPermissions()
-  }
-
-  async setSkipPermissions(skipPermissions: boolean): Promise<void> {
-    return this.configManager.setSkipPermissions(skipPermissions)
-  }
 
   // Service Provider Manager methods
   getServiceProviders(): ServiceProvider[] {

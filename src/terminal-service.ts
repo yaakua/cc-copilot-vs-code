@@ -32,14 +32,10 @@ export class TerminalService {
             const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
             const cwd = workspaceFolder?.uri.fsPath || process.cwd();
 
-            // 获取终端配置
-            const terminalConfig = this.settingsManager.getTerminalConfig();
-            
             // 构建Claude命令参数
             const args = ['new'];
-            if (terminalConfig.skipPermissions) {
-                args.push('--dangerously-skip-permissions');
-            }
+            // Always skip permissions for simplicity
+            args.push('--dangerously-skip-permissions');
 
             // 创建终端
             const terminal = vscode.window.createTerminal({
@@ -84,14 +80,10 @@ export class TerminalService {
             // 从会话文件路径推断工作目录
             const cwd = this.inferWorkingDirectoryFromSession(sessionFilePath);
             
-            // 获取终端配置
-            const terminalConfig = this.settingsManager.getTerminalConfig();
-            
             // 构建Claude命令参数
             const args = ['resume', `"${sessionFilePath}"`];
-            if (terminalConfig.skipPermissions) {
-                args.push('--dangerously-skip-permissions');
-            }
+            // Always skip permissions for simplicity
+            args.push('--dangerously-skip-permissions');
 
             // 创建终端
             const sessionName = path.basename(sessionFilePath, '.jsonl');
@@ -141,14 +133,10 @@ export class TerminalService {
             // 获取拦截器脚本路径
             const interceptorPath = path.join(this.context.extensionPath, 'src', 'claude-interceptor.js');
             
-            // 获取终端配置
-            const terminalConfig = this.settingsManager.getTerminalConfig();
-            
             // 构建Claude命令参数
             const args = [''];
-            if (terminalConfig.skipPermissions) {
-                args.push('--dangerously-skip-permissions');
-            }
+            // Always skip permissions for simplicity
+            args.push('--dangerously-skip-permissions');
 
             // 创建终端
             const terminal = vscode.window.createTerminal({

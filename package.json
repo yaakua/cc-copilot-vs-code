@@ -95,47 +95,47 @@
         "command": "cc-copilot.reloginAccount",
         "title": "Re-login Account",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "cc-copilot.showMoreActions",
+        "title": "More Actions",
+        "icon": "$(kebab-vertical)"
+      },
+      {
+        "command": "cc-copilot.newSessionForProject",
+        "title": "New Session for Project",
+        "icon": "$(add)"
       }
     ],
     "menus": {
       "view/title": [
         {
-          "command": "cc-copilot.newSession",
+          "command": "cc-copilot.showMoreActions",
           "when": "view == claude-sessions-view",
           "group": "navigation"
-        },
-        {
-          "command": "cc-copilot.refreshSessions",
-          "when": "view == claude-sessions-view",
-          "group": "navigation"
-        },
-        {
-          "command": "cc-copilot.syncWithClaude",
-          "when": "view == claude-sessions-view",
-          "group": "navigation@1"
-        },
-        {
-          "command": "cc-copilot.openSettings",
-          "when": "view == claude-sessions-view",
-          "group": "navigation@2"
-        },
-        {
-          "command": "cc-copilot.addThirdPartyProvider",
-          "when": "view == claude-sessions-view",
-          "group": "navigation@3"
-        },
-        {
-          "command": "cc-copilot.selectActiveProvider",
-          "when": "view == claude-sessions-view",
-          "group": "navigation@4"
-        },
-        {
-          "command": "cc-copilot.discoverClaudeAccounts",
-          "when": "view == claude-sessions-view",
-          "group": "navigation@5"
         }
       ],
       "view/item/context": [
+        {
+          "command": "cc-copilot.newSessionForProject",
+          "when": "view == claude-sessions-view && viewItem == project",
+          "group": "inline"
+        },
+        {
+          "command": "cc-copilot.newSessionForProject",
+          "when": "view == claude-sessions-view && viewItem == project",
+          "group": "context@1"
+        },
+        {
+          "command": "cc-copilot.refreshSessions",
+          "when": "view == claude-sessions-view && viewItem == project",
+          "group": "context@2"
+        },
+        {
+          "command": "cc-copilot.syncWithClaude",
+          "when": "view == claude-sessions-view && viewItem == project",
+          "group": "context@3"
+        },
         {
           "command": "cc-copilot.openSession",
           "when": "view == claude-sessions-view && viewItem == session",
@@ -307,61 +307,6 @@
           "type": "string",
           "default": "",
           "markdownDescription": "**Active service provider ID**\n\nThe currently active AI service provider. Use the command palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and search for \"Select Active AI Provider\" to choose from available providers, or use the provider selection button in the CC Copilot sidebar."
-        },
-        "ccCopilot.terminal": {
-          "type": "object",
-          "properties": {
-            "fontSize": {
-              "type": "number",
-              "default": 14,
-              "minimum": 8,
-              "maximum": 48,
-              "description": "Terminal font size (8-48px)"
-            },
-            "fontFamily": {
-              "type": "string",
-              "default": "Monaco, Consolas, monospace",
-              "enum": [
-                "Monaco, Consolas, monospace",
-                "Courier New, monospace",
-                "Source Code Pro, monospace",
-                "Fira Code, monospace",
-                "JetBrains Mono, monospace"
-              ],
-              "enumItemLabels": [
-                "Monaco/Consolas",
-                "Courier New",
-                "Source Code Pro", 
-                "Fira Code",
-                "JetBrains Mono"
-              ],
-              "description": "Terminal font family"
-            },
-            "theme": {
-              "type": "string",
-              "default": "dark",
-              "enum": ["dark", "light"],
-              "enumItemLabels": ["Dark Theme", "Light Theme"],
-              "enumDescriptions": [
-                "Dark theme optimized for low-light environments",
-                "Light theme suitable for bright environments"
-              ],
-              "description": "Terminal color theme"
-            },
-            "skipPermissions": {
-              "type": "boolean",
-              "default": true,
-              "markdownDescription": "Automatically add `--dangerously-skip-permissions` flag when starting Claude CLI sessions. **Warning**: This may reduce security."
-            }
-          },
-          "additionalProperties": false,
-          "default": {
-            "fontSize": 14,
-            "fontFamily": "Monaco, Consolas, monospace",
-            "theme": "dark",
-            "skipPermissions": true
-          },
-          "markdownDescription": "**Terminal configuration** for Claude CLI sessions"
         },
         "ccCopilot.defaultProviderType": {
           "type": "string",

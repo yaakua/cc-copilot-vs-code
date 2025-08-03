@@ -49,5 +49,51 @@ export class CommandRegistry {
       vscode.commands.executeCommand('workbench.action.openSettings', 'ccCopilot')
     })
     this.context.subscriptions.push(openSettingsCommand)
+
+    // More Actions dropdown command
+    const showMoreActionsCommand = vscode.commands.registerCommand('cc-copilot.showMoreActions', async () => {
+      const items: vscode.QuickPickItem[] = [
+        {
+          label: '$(refresh) Refresh Sessions',
+          description: 'Refresh the session list',
+          detail: 'cc-copilot.refreshSessions'
+        },
+        {
+          label: '$(sync) Sync with Claude Directory',
+          description: 'Sync sessions with Claude directory',
+          detail: 'cc-copilot.syncWithClaude'
+        },
+        {
+          label: '$(settings-gear) Open Settings',
+          description: 'Open extension settings',
+          detail: 'cc-copilot.openSettings'
+        },
+        {
+          label: '$(add) Add Third Party AI Provider',
+          description: 'Add a new third-party AI provider',
+          detail: 'cc-copilot.addThirdPartyProvider'
+        },
+        {
+          label: '$(account) Select Active AI Provider',
+          description: 'Choose which AI provider to use',
+          detail: 'cc-copilot.selectActiveProvider'
+        },
+        {
+          label: '$(search) Discover Claude Accounts',
+          description: 'Discover available Claude accounts',
+          detail: 'cc-copilot.discoverClaudeAccounts'
+        }
+      ]
+
+      const selected = await vscode.window.showQuickPick(items, {
+        placeHolder: 'Select an action to perform',
+        title: 'Claude Copilot Actions'
+      })
+
+      if (selected && selected.detail) {
+        await vscode.commands.executeCommand(selected.detail)
+      }
+    })
+    this.context.subscriptions.push(showMoreActionsCommand)
   }
 }

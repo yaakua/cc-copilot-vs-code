@@ -21,8 +21,7 @@ export class ConfigManager extends EventEmitter {
       apiProviders: config.get('apiProviders', defaultSettings.apiProviders),
       activeProviderId: config.get('activeProviderId', defaultSettings.activeProviderId),
       serviceProviders: config.get('serviceProviders', defaultSettings.serviceProviders),
-      activeServiceProviderId: config.get('activeServiceProviderId', defaultSettings.activeServiceProviderId),
-      terminal: config.get('terminal', defaultSettings.terminal)
+      activeServiceProviderId: config.get('activeServiceProviderId', defaultSettings.activeServiceProviderId)
     }
   }
 
@@ -63,26 +62,4 @@ export class ConfigManager extends EventEmitter {
     this.emit('provider:changed', providerId)
   }
 
-  getTerminalConfig() {
-    const config = vscode.workspace.getConfiguration(this.configurationSection)
-    return config.get('terminal', defaultSettings.terminal)
-  }
-
-  async updateTerminalConfig(terminalConfig: Partial<AppSettings['terminal']>): Promise<void> {
-    const config = vscode.workspace.getConfiguration(this.configurationSection)
-    const current = this.getTerminalConfig()
-    const updated = { ...current, ...terminalConfig }
-    
-    await config.update('terminal', updated, vscode.ConfigurationTarget.Global)
-    this.emit('terminal:config-updated', updated)
-  }
-
-  getSkipPermissions(): boolean {
-    const terminalConfig = this.getTerminalConfig()
-    return terminalConfig.skipPermissions
-  }
-
-  async setSkipPermissions(skipPermissions: boolean): Promise<void> {
-    await this.updateTerminalConfig({ skipPermissions })
-  }
 }

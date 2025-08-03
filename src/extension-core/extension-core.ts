@@ -24,10 +24,22 @@ export class ExtensionCore {
     logger.setContext(this.context)
     logger.info('Claude Companion extension activated', 'extension')
     
+    console.log('Initializing SettingsManager...')
+    console.log('SettingsManager type:', typeof SettingsManager)
     this.settingsManager = new SettingsManager(this.context)
+    console.log('SettingsManager initialized successfully')
+    
+    console.log('Initializing SessionManager...')
     this.sessionManager = new SessionManager(this.context, this.settingsManager)
+    console.log('SessionManager initialized successfully')
+    
+    console.log('Initializing TerminalService...')
     this.terminalService = new TerminalService(this.context, this.settingsManager)
+    console.log('TerminalService initialized successfully')
+    
+    console.log('Initializing ClaudeSessionProvider...')
     this.sessionProvider = new ClaudeSessionProvider(this.sessionManager, this.settingsManager)
+    console.log('ClaudeSessionProvider initialized successfully')
   }
 
   private setupTreeView(): void {
