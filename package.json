@@ -1,0 +1,183 @@
+{
+  "name": "claude-cli-companion",
+  "displayName": "Claude CLI Companion",
+  "description": "A companion for managing Claude CLI sessions in VS Code",
+  "version": "0.0.1",
+  "publisher": "claude-companion",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "claude",
+    "ai",
+    "terminal",
+    "session",
+    "companion"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "claude-companion-sidebar",
+          "title": "Claude Companion",
+          "icon": "$(robot)"
+        }
+      ]
+    },
+    "views": {
+      "claude-companion-sidebar": [
+        {
+          "id": "claude-sessions-view",
+          "name": "Sessions",
+          "type": "tree"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "claude-companion.newSession",
+        "title": "New Claude Session",
+        "icon": "$(add)"
+      },
+      {
+        "command": "claude-companion.refreshSessions",
+        "title": "Refresh Sessions",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "claude-companion.openSession",
+        "title": "Open Session"
+      },
+      {
+        "command": "claude-companion.deleteSession",
+        "title": "Delete Session",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "claude-companion.syncWithClaude",
+        "title": "Sync with Claude Directory",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "claude-companion.openSettings",
+        "title": "Open Settings",
+        "icon": "$(settings-gear)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "claude-companion.newSession",
+          "when": "view == claude-sessions-view",
+          "group": "navigation"
+        },
+        {
+          "command": "claude-companion.refreshSessions",
+          "when": "view == claude-sessions-view",
+          "group": "navigation"
+        },
+        {
+          "command": "claude-companion.syncWithClaude",
+          "when": "view == claude-sessions-view",
+          "group": "navigation@1"
+        },
+        {
+          "command": "claude-companion.openSettings",
+          "when": "view == claude-sessions-view",
+          "group": "navigation@2"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "claude-companion.openSession",
+          "when": "view == claude-sessions-view && viewItem == session",
+          "group": "inline"
+        },
+        {
+          "command": "claude-companion.deleteSession",
+          "when": "view == claude-sessions-view && viewItem == session",
+          "group": "context"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Claude Companion",
+      "properties": {
+        "claudeCompanion.proxyConfig": {
+          "type": "object",
+          "default": {
+            "enabled": false,
+            "url": "http://127.0.0.1:1087"
+          },
+          "description": "Proxy configuration for Claude API requests"
+        },
+        "claudeCompanion.serviceProviders": {
+          "type": "array",
+          "default": [],
+          "description": "Service providers configuration"
+        },
+        "claudeCompanion.activeServiceProviderId": {
+          "type": "string",
+          "default": "",
+          "description": "Active service provider ID"
+        },
+        "claudeCompanion.terminal": {
+          "type": "object",
+          "default": {
+            "fontSize": 14,
+            "fontFamily": "Monaco, Consolas, monospace",
+            "theme": "dark",
+            "skipPermissions": true
+          },
+          "description": "Terminal configuration"
+        },
+        "claudeCompanion.projectFilter": {
+          "type": "object",
+          "default": {
+            "hiddenDirectories": [
+              ".git",
+              ".svn",
+              ".hg",
+              "node_modules",
+              ".DS_Store",
+              ".vscode",
+              ".idea",
+              "dist",
+              "build",
+              ".next",
+              ".nuxt",
+              "coverage",
+              ".nyc_output",
+              "tmp",
+              "temp",
+              ".cache",
+              ".parcel-cache"
+            ]
+          },
+          "description": "Project filtering configuration"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "16.x",
+    "@types/vscode": "^1.74.0",
+    "typescript": "^4.9.4"
+  },
+  "dependencies": {
+    "@types/uuid": "^9.0.8",
+    "uuid": "^9.0.1"
+  }
+}
