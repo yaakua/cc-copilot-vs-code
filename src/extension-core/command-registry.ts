@@ -59,11 +59,6 @@ export class CommandRegistry {
           detail: 'cc-copilot.refreshSessions'
         },
         {
-          label: '$(sync) Sync with Claude Directory',
-          description: 'Sync sessions with Claude directory',
-          detail: 'cc-copilot.syncWithClaude'
-        },
-        {
           label: '$(settings-gear) Open Settings',
           description: 'Open extension settings',
           detail: 'cc-copilot.openSettings'

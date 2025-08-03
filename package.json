@@ -62,11 +62,6 @@
         "icon": "$(trash)"
       },
       {
-        "command": "cc-copilot.syncWithClaude",
-        "title": "Sync with Claude Directory",
-        "icon": "$(sync)"
-      },
-      {
         "command": "cc-copilot.openSettings",
         "title": "Open Settings",
         "icon": "$(settings-gear)"
@@ -140,11 +135,6 @@
           "command": "cc-copilot.refreshSessions",
           "when": "view == claude-sessions-view && viewItem == project",
           "group": "context@2"
-        },
-        {
-          "command": "cc-copilot.syncWithClaude",
-          "when": "view == claude-sessions-view && viewItem == project",
-          "group": "context@3"
         },
         {
           "command": "cc-copilot.openSession",

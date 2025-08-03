@@ -19,7 +19,7 @@ export class SessionCommands {
     this.registerRefreshSessionsCommand()
     this.registerOpenSessionCommand()
     this.registerDeleteSessionCommand()
-    this.registerSyncWithClaudeCommand()
+    this.registerLoadMoreSessionsCommand()
   }
 
   private registerNewSessionCommand(): void {
@@ -85,8 +85,8 @@ export class SessionCommands {
   }
 
   private registerRefreshSessionsCommand(): void {
-    const refreshSessionsCommand = vscode.commands.registerCommand('cc-copilot.refreshSessions', () => {
-      this.sessionProvider.refresh()
+    const refreshSessionsCommand = vscode.commands.registerCommand('cc-copilot.refreshSessions', async () => {
+      await this.sessionProvider.syncWithClaudeDirectory()
       vscode.window.showInformationMessage('Sessions refreshed')
     })
     this.context.subscriptions.push(refreshSessionsCommand)
@@ -127,11 +127,13 @@ export class SessionCommands {
     this.context.subscriptions.push(deleteSessionCommand)
   }
 
-  private registerSyncWithClaudeCommand(): void {
-    const syncWithClaudeCommand = vscode.commands.registerCommand('cc-copilot.syncWithClaude', async () => {
-      await this.sessionProvider.syncWithClaudeDirectory()
-      vscode.window.showInformationMessage('Synced with Claude directory')
+
+  private registerLoadMoreSessionsCommand(): void {
+    const loadMoreSessionsCommand = vscode.commands.registerCommand('cc-copilot.loadMoreSessions', async (item) => {
+      if (item && item.projectId) {
+        this.sessionProvider.loadMoreSessions(item.projectId)
+      }
     })
-    this.context.subscriptions.push(syncWithClaudeCommand)
+    this.context.subscriptions.push(loadMoreSessionsCommand)
   }
 }
