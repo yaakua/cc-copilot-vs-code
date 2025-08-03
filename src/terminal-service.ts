@@ -21,7 +21,108 @@ export class TerminalService {
         private context: vscode.ExtensionContext,
         private settingsManager: SettingsManager,
         private sessionManager?: SessionManager
-    ) {}
+    ) {
+        // 启动拦截器通信监听
+        this.setupInterceptorCommunication();
+    }
+
+    /**
+     * 设置拦截器通信监听
+     * 监听拦截器的配置请求和更新
+     */
+    private setupInterceptorCommunication(): void {
+        try {
+            const os = require('os');
+            const path = require('path');
+            const fs = require('fs');
+            
+            const tempDir = path.join(os.tmpdir(), 'cc-copilot-ipc');
+            
+            // 确保目录存在
+            if (!fs.existsSync(tempDir)) {
+                fs.mkdirSync(tempDir, { recursive: true });
+            }
+
+            // 使用文件系统监听器
+            const watcher = fs.watch(tempDir, (eventType: string, filename: string) => {
+                if (filename && eventType === 'rename') {
+                    this.handleInterceptorCommunication(path.join(tempDir, filename));
+                }
+            });
+
+            // 清理资源
+            this.context.subscriptions.push({
+                dispose: () => {
+                    watcher.close();
+                }
+            });
+
+            logger.info('✅ Interceptor communication setup complete', 'TerminalService');
+        } catch (error) {
+            logger.warn('⚠️ Failed to setup interceptor communication', 'TerminalService', error as Error);
+        }
+    }
+
+    /**
+     * 处理拦截器通信
+     */
+    private async handleInterceptorCommunication(filePath: string): Promise<void> {
+        try {
+            const fs = require('fs');
+            
+            if (!fs.existsSync(filePath)) {
+                return;
+            }
+
+            // 读取请求文件
+            const fileContent = fs.readFileSync(filePath, 'utf-8');
+            const request = JSON.parse(fileContent);
+
+            if (request.type === 'GET_SETTINGS') {
+                // 处理设置获取请求
+                const settings = this.settingsManager.getSettings();
+                const serviceProviders = this.settingsManager.getServiceProviders();
+                
+                const response = {
+                    ...settings,
+                    serviceProviders,
+                    activeServiceProviderId: this.settingsManager.getSettings().activeServiceProviderId
+                };
+
+                // 写入响应文件
+                const responseFile = filePath.replace('_request_', '_response_');
+                fs.writeFileSync(responseFile, JSON.stringify(response));
+                
+                logger.info('📤 Settings sent to interceptor', 'TerminalService');
+                
+            } else if (request.type === 'UPDATE_SETTINGS') {
+                // 处理设置更新请求
+                logger.info('📥 Updating settings from interceptor', 'TerminalService');
+                
+                const { settings } = request;
+                
+                // 更新服务提供商配置
+                if (settings.serviceProviders) {
+                    // 使用VSCode的配置系统更新
+                    const config = vscode.workspace.getConfiguration('ccCopilot');
+                    await config.update('serviceProviders', settings.serviceProviders, vscode.ConfigurationTarget.Global);
+                }
+                
+                if (settings.activeServiceProviderId) {
+                    const config = vscode.workspace.getConfiguration('ccCopilot');
+                    await config.update('activeServiceProviderId', settings.activeServiceProviderId, vscode.ConfigurationTarget.Global);
+                }
+                
+                logger.info('✅ Settings updated from interceptor', 'TerminalService');
+                
+                // 删除处理完的文件
+                fs.unlinkSync(filePath);
+            }
+            
+        } catch (error) {
+            logger.warn('⚠️ Failed to handle interceptor communication', 'TerminalService', error as Error);
+        }
+    }
 
     /**
      * 创建新的Claude会话终端

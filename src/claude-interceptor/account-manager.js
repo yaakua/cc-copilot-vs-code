@@ -68,35 +68,43 @@ class AccountManager {
 
     /**
      * 尝试为账号获取token
-     * 通过检查Claude CLI的配置文件来获取已有的token
+     * 由于使用VSCode配置存储，这里主要是触发拦截器获取新token
      */
     attemptToRetrieveTokenForAccount(emailAddress) {
         try {
+            console.log(`[DEBUG] [Claude Interceptor] 🔄 Attempting to retrieve token for account: ${emailAddress}`);
+            
+            // 检查Claude CLI配置文件（作为备用方案）
             const os = require('os');
             const path = require('path');
-            
-            // Claude CLI配置文件路径
             const claudeConfigPath = path.join(os.homedir(), '.anthropic', 'claude-cli', 'config.json');
             
             if (fs.existsSync(claudeConfigPath)) {
-                const configContent = fs.readFileSync(claudeConfigPath, 'utf-8');
-                const config = JSON.parse(configContent);
-                
-                // 查找匹配的账号
-                if (config.account && config.account.email === emailAddress && config.account.session_key) {
-                    console.log(`[SILENT] [Claude Interceptor] Found existing token for account: ${emailAddress}`);
+                try {
+                    const configContent = fs.readFileSync(claudeConfigPath, 'utf-8');
+                    const config = JSON.parse(configContent);
                     
-                    // 构建authorization header
-                    const authorization = `Bearer ${config.account.session_key}`;
-                    
-                    // 更新配置
-                    this.updateAuthorizationInConfig(authorization);
-                    
-                    return authorization;
+                    // 查找匹配的账号
+                    if (config.account && config.account.email === emailAddress && config.account.session_key) {
+                        console.log(`[DEBUG] [Claude Interceptor] ✅ Found existing CLI token for account: ${emailAddress}`);
+                        
+                        // 构建authorization header
+                        const authorization = `Bearer ${config.account.session_key}`;
+                        
+                        // 更新配置
+                        this.updateAuthorizationInConfig(authorization);
+                        
+                        return authorization;
+                    }
+                } catch (error) {
+                    console.warn(`[DEBUG] [Claude Interceptor] ⚠️ Failed to read CLI config:`, error.message);
                 }
             }
+            
+            console.log(`[DEBUG] [Claude Interceptor] 📝 No existing CLI token found, will wait for API request to capture token`);
+            return null;
         } catch (error) {
-            console.warn(`[SILENT] [Claude Interceptor] Failed to retrieve token for account ${emailAddress}:`, error.message);
+            console.warn(`[DEBUG] [Claude Interceptor] ❌ Failed to retrieve token for account ${emailAddress}:`, error.message);
         }
         return null;
     }
@@ -156,31 +164,15 @@ class AccountManager {
 
     /**
      * 通知token更新
-     * 用于通知扩展token已成功获取
+     * 直接更新VSCode配置，简化通知机制
      */
     notifyTokenUpdate(emailAddress, authorization) {
         try {
-            const os = require('os');
-            const path = require('path');
-            
-            // 创建token更新通知文件
-            const tempDir = path.join(os.tmpdir(), 'cc-copilot');
-            if (!fs.existsSync(tempDir)) {
-                fs.mkdirSync(tempDir, { recursive: true });
-            }
-            
-            const tokenFile = path.join(tempDir, `token_${Date.now()}.json`);
-            const tokenData = {
-                emailAddress,
-                authorization,
-                timestamp: Date.now(),
-                type: 'token_update'
-            };
-            
-            fs.writeFileSync(tokenFile, JSON.stringify(tokenData));
-            console.log(`[SILENT] [Claude Interceptor] Token update notification created: ${tokenFile}`);
+            console.log(`[DEBUG] [Claude Interceptor] 🔔 Notifying token update for: ${emailAddress}`);
+            // token更新已经通过saveSettingsToStore完成，这里只需要记录日志
+            console.log(`[DEBUG] [Claude Interceptor] ✅ Token update notification for ${emailAddress} complete`);
         } catch (error) {
-            console.warn('[SILENT] [Claude Interceptor] Failed to create token notification:', error.message);
+            console.warn('[DEBUG] [Claude Interceptor] ⚠️ Failed to notify token update:', error.message);
         }
     }
 
@@ -225,15 +217,8 @@ class AccountManager {
                     authorization: authorization
                 };
 
-                // 保存到配置
-                const settingsData = this.configManager.loadSettingsFromStore();
-                if (settingsData) {
-                    await this.addOrUpdateClaudeAccount(settingsData, account);
-                    this.configManager.saveSettingsToStore(settingsData);
-                    
-                    // 同时保存到扩展的全局存储中
-                    await this.saveAccountToExtensionStorage(account);
-                }
+                // 直接保存到VSCode设置
+                await this.saveAccountToVSCodeSettings(account);
             }
         } catch (error) {
             console.warn('[SILENT] [Claude Interceptor] Failed to identify account from authorization:', error.message);
@@ -335,22 +320,26 @@ class AccountManager {
     }
 
     /**
-     * 保存账号到扩展的全局存储
+     * 保存账号到VSCode设置
+     * 直接通过配置管理器更新，不再使用临时文件
      */
-    async saveAccountToExtensionStorage(account) {
+    async saveAccountToVSCodeSettings(account) {
         try {
-            console.log(`[SILENT] [Claude Interceptor] Account ready for extension storage: ${account.emailAddress}`);
+            console.log(`[DEBUG] [Claude Interceptor] 💾 Saving account to VSCode settings: ${account.emailAddress}`);
             
-            const tempDir = path.join(os.tmpdir(), 'cc-copilot');
-            if (!fs.existsSync(tempDir)) {
-                fs.mkdirSync(tempDir, { recursive: true });
+            const settingsData = this.configManager.loadSettingsFromStore();
+            if (settingsData) {
+                await this.addOrUpdateClaudeAccount(settingsData, account);
+                const saveResult = this.configManager.saveSettingsToStore(settingsData);
+                
+                if (saveResult) {
+                    console.log(`[DEBUG] [Claude Interceptor] ✅ Account saved to VSCode settings: ${account.emailAddress}`);
+                } else {
+                    console.warn(`[DEBUG] [Claude Interceptor] ⚠️ Failed to save account to VSCode settings`);
+                }
             }
-            
-            const accountFile = path.join(tempDir, `account_${Date.now()}.json`);
-            fs.writeFileSync(accountFile, JSON.stringify(account));
-            console.log(`[SILENT] [Claude Interceptor] Account saved to temp file: ${accountFile}`);
         } catch (error) {
-            console.warn('[SILENT] [Claude Interceptor] Failed to save account to temp storage:', error.message);
+            console.warn('[DEBUG] [Claude Interceptor] ❌ Failed to save account to VSCode settings:', error.message);
         }
     }
 

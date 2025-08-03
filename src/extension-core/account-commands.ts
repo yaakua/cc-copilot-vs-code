@@ -1,4 +1,7 @@
 import * as vscode from 'vscode'
+import * as os from 'os'
+import * as path from 'path'
+import * as fs from 'fs'
 import { SettingsManager } from '../settings'
 import { TerminalService } from '../terminal-service'
 
@@ -272,7 +275,9 @@ export class AccountCommands {
               
               setTimeout(() => {
                 vscode.window.showInformationMessage(
-                  `✅ Successfully switched to ${accountDisplayName}!\n\nToken obtained and ready to use.`
+                  `✅ Successfully switched to ${accountDisplayName}!
+
+Token obtained and ready to use.`
                 )
               }, 500)
             } else {
@@ -295,7 +300,9 @@ export class AccountCommands {
               
               setTimeout(() => {
                 vscode.window.showErrorMessage(
-                  `❌ Failed to switch to ${accountDisplayName}!\n\nThe account may not be logged in or token is invalid. Please try logging in again.`,
+                  `❌ Failed to switch to ${accountDisplayName}!
+
+The account may not be logged in or token is invalid. Please try logging in again.`,
                   'Login to Claude'
                 ).then(action => {
                   if (action === 'Login to Claude') {
@@ -348,7 +355,8 @@ export class AccountCommands {
         console.log('🔍 All Service Providers:', providers.length);
         
         providers.forEach((provider: any, index: number) => {
-          console.log(`\n📦 Provider ${index + 1}:`);
+          console.log(`
+📦 Provider ${index + 1}:`);
           console.log(`  - ID: ${provider.id}`);
           console.log(`  - Type: ${provider.type}`);
           console.log(`  - Name: ${provider.name}`);
@@ -368,12 +376,10 @@ export class AccountCommands {
         });
 
         // 3. 检查Claude CLI配置
-        const os = require('os');
-        const path = require('path');
-        const fs = require('fs');
         
         const claudeConfigPath = path.join(os.homedir(), '.anthropic', 'claude-cli', 'config.json');
-        console.log(`\n📁 Claude CLI Config Path: ${claudeConfigPath}`);
+        console.log(`
+📁 Claude CLI Config Path: ${claudeConfigPath}`);
         console.log(`📁 Config Exists: ${fs.existsSync(claudeConfigPath)}`);
         
         if (fs.existsSync(claudeConfigPath)) {
@@ -386,17 +392,38 @@ export class AccountCommands {
               console.log(`🔑 CLI Session Key Preview: ${config.account.session_key.substring(0, 30)}...`);
             }
           } catch (error) {
-            console.log(`❌ Error reading CLI config: ${error.message}`);
+            console.log(`❌ Error reading CLI config: ${(error as Error).message}`);
           }
         }
 
-        // 4. 检查扩展配置文件
-        const userDataPath = path.join(os.homedir(), 'Library', 'Application Support', 'CC Copilot');
-        const settingsPath = path.join(userDataPath, 'settings.json');
-        console.log(`\n📁 Extension Settings Path: ${settingsPath}`);
-        console.log(`📁 Settings Exists: ${fs.existsSync(settingsPath)}`);
+        // 4. 检查VSCode配置
+        console.log(`
+📁 VSCode Configuration (ccCopilot section):`);
+        const config = vscode.workspace.getConfiguration('ccCopilot');
+        const configKeys = ['serviceProviders', 'activeServiceProviderId', 'proxyConfig'];
+        
+        configKeys.forEach(key => {
+          const value = config.get(key);
+          console.log(`  - ${key}: ${value ? 'configured' : 'not set'}`);
+          if (key === 'serviceProviders' && value) {
+            console.log(`    Count: ${(value as any[]).length}`);
+          }
+        });
 
-        console.log('\n🔍 ===== Debug Report Complete =====');
+        // 5. 检查拦截器通信目录
+        const ipcDir = path.join(os.tmpdir(), 'cc-copilot-ipc');
+        console.log(`
+📡 IPC Communication Directory: ${ipcDir}`);
+        console.log(`📡 IPC Dir Exists: ${fs.existsSync(ipcDir)}`);
+        
+        if (fs.existsSync(ipcDir)) {
+          const files = fs.readdirSync(ipcDir);
+          console.log(`📡 IPC Files: ${files.length} files`);
+          files.forEach((file: string) => console.log(`    - ${file}`));
+        }
+
+        console.log(`
+🔍 ===== Debug Report Complete =====`);
         
         vscode.window.showInformationMessage('Account debug information has been logged to the console. Check the Developer Console for details.');
         
