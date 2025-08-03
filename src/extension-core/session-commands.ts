@@ -36,28 +36,8 @@ export class SessionCommands {
         return
       }
 
-      const sessionType = await vscode.window.showQuickPick([
-        {
-          label: 'Standard Session',
-          description: 'Create a new Claude session',
-          detail: 'Basic Claude session without request interception'
-        },
-        {
-          label: 'Intercepted Session',
-          description: 'Create a session with request monitoring',
-          detail: 'Advanced session with API request interception for account management'
-        }
-      ], {
-        placeHolder: 'Select session type'
-      })
-
-      if (!sessionType) return
-
-      if (sessionType.label === 'Standard Session') {
-        await this.terminalService.createNewClaudeSession()
-      } else {
-        await this.terminalService.createClaudeSessionWithInterceptor()
-      }
+      // 直接创建标准会话，不显示选择对话框
+      await this.terminalService.createNewClaudeSession()
     })
     this.context.subscriptions.push(newSessionCommand)
   }
@@ -93,30 +73,8 @@ export class SessionCommands {
         }
       }
 
-      // 选择会话类型
-      const sessionType = await vscode.window.showQuickPick([
-        {
-          label: 'Standard Session',
-          description: `Create a new Claude session for ${projectName}`,
-          detail: 'Basic Claude session without request interception'
-        },
-        {
-          label: 'Intercepted Session',
-          description: `Create a session with request monitoring for ${projectName}`,
-          detail: 'Advanced session with API request interception for account management'
-        }
-      ], {
-        placeHolder: `Select session type for ${projectName}`
-      })
-
-      if (!sessionType) return
-
-      // 根据选择创建会话
-      if (sessionType.label === 'Standard Session') {
-        await this.terminalService.createNewClaudeSession()
-      } else {
-        await this.terminalService.createClaudeSessionWithInterceptor()
-      }
+      // 直接创建标准会话，不显示选择对话框
+      await this.terminalService.createNewClaudeSession()
 
       // 刷新会话列表
       setTimeout(() => {

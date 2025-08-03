@@ -4,7 +4,17 @@ import { claudePathManager } from './claude-path-manager';
 import { SettingsManager } from './settings';
 import { logger } from './logger';
 
+/**
+ * 终端服务类
+ * 负责管理Claude CLI终端会话的创建、恢复和配置
+ * 提供与Claude CLI交互的统一接口
+ */
 export class TerminalService {
+    /**
+     * 构造函数
+     * @param context - VSCode扩展上下文
+     * @param settingsManager - 设置管理器实例
+     */
     constructor(
         private context: vscode.ExtensionContext,
         private settingsManager: SettingsManager
@@ -12,11 +22,12 @@ export class TerminalService {
 
     /**
      * 创建新的Claude会话终端
+     * 启动一个新的Claude CLI会话，自动跳过权限检查
      */
     public async createNewClaudeSession(): Promise<void> {
         try {
             logger.info('Creating new Claude session...', 'TerminalService');
-            
+
             // 检测Claude CLI路径
             const claudePath = await claudePathManager.getClaudePath();
             if (!claudePath) {
@@ -28,23 +39,23 @@ export class TerminalService {
 
             logger.info(`Using Claude CLI at: ${claudePath}`, 'TerminalService');
 
-            // 获取工作目录
+            // 获取工作目录，优先使用当前工作区
             const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
             const cwd = workspaceFolder?.uri.fsPath || process.cwd();
 
             // 构建Claude命令参数
-            const args = ['new'];
-            // Always skip permissions for simplicity
+            const args = [''];
+            // 为简化操作，始终跳过权限检查
             args.push('--dangerously-skip-permissions');
 
-            // 创建终端
+            // 创建终端实例
             const terminal = vscode.window.createTerminal({
                 name: 'Claude Session',
                 cwd: cwd,
                 env: this.getClaudeEnvironment()
             });
 
-            // 显示终端
+            // 显示终端窗口
             terminal.show();
 
             // 执行Claude命令
@@ -53,7 +64,7 @@ export class TerminalService {
             terminal.sendText(command);
 
             logger.info('New Claude session created successfully', 'TerminalService');
-            
+
         } catch (error) {
             const message = `Failed to create Claude session: ${(error as Error).message}`;
             logger.error(message, 'TerminalService', error as Error);
@@ -63,11 +74,13 @@ export class TerminalService {
 
     /**
      * 恢复现有Claude会话
+     * 根据会话文件路径恢复之前保存的Claude会话
+     * @param sessionFilePath - 会话文件的完整路径
      */
     public async resumeClaudeSession(sessionFilePath: string): Promise<void> {
         try {
             logger.info(`Resuming Claude session from: ${sessionFilePath}`, 'TerminalService');
-            
+
             // 检测Claude CLI路径
             const claudePath = await claudePathManager.getClaudePath();
             if (!claudePath) {
@@ -79,21 +92,24 @@ export class TerminalService {
 
             // 从会话文件路径推断工作目录
             const cwd = this.inferWorkingDirectoryFromSession(sessionFilePath);
-            
-            // 构建Claude命令参数
-            const args = ['resume', `"${sessionFilePath}"`];
-            // Always skip permissions for simplicity
+
+            // 从文件路径提取会话ID（去除.jsonl扩展名）
+            const sessionId = path.basename(sessionFilePath, '.jsonl');
+
+            // 构建Claude恢复命令参数
+            const args = ['--resume', sessionId];
+            // 为简化操作，始终跳过权限检查
             args.push('--dangerously-skip-permissions');
 
-            // 创建终端
-            const sessionName = path.basename(sessionFilePath, '.jsonl');
+            // 创建终端实例，使用会话ID作为名称
+            const sessionName = sessionId;
             const terminal = vscode.window.createTerminal({
                 name: `Claude: ${sessionName}`,
                 cwd: cwd,
                 env: this.getClaudeEnvironment()
             });
 
-            // 显示终端
+            // 显示终端窗口
             terminal.show();
 
             // 执行Claude resume命令
@@ -102,7 +118,7 @@ export class TerminalService {
             terminal.sendText(command);
 
             logger.info('Claude session resumed successfully', 'TerminalService');
-            
+
         } catch (error) {
             const message = `Failed to resume Claude session: ${(error as Error).message}`;
             logger.error(message, 'TerminalService', error as Error);
@@ -112,12 +128,13 @@ export class TerminalService {
 
     /**
      * 创建带有拦截器的Claude会话
+     * 使用Node.js的require机制加载拦截器脚本，用于监控和修改Claude CLI的行为
      */
     public async createClaudeSessionWithInterceptor(): Promise<void> {
         try {
             logger.info('Creating Claude session with interceptor...', 'TerminalService');
-            
-            // 检测Claude CLI路径  
+
+            // 检测Claude CLI路径
             const claudePath = await claudePathManager.getClaudePath();
             if (!claudePath) {
                 const message = 'Claude CLI not found. Please install Claude CLI first.';
@@ -132,29 +149,29 @@ export class TerminalService {
 
             // 获取拦截器脚本路径
             const interceptorPath = path.join(this.context.extensionPath, 'src', 'claude-interceptor.js');
-            
+
             // 构建Claude命令参数
             const args = [''];
-            // Always skip permissions for simplicity
+            // 为简化操作，始终跳过权限检查
             args.push('--dangerously-skip-permissions');
 
-            // 创建终端
+            // 创建终端实例，标明使用了拦截器
             const terminal = vscode.window.createTerminal({
                 name: 'Claude Session (Intercepted)',
                 cwd: cwd,
                 env: this.getClaudeEnvironment()
             });
 
-            // 显示终端
+            // 显示终端窗口
             terminal.show();
 
-            // 使用node --require来加载拦截器
+            // 使用node --require来预加载拦截器脚本
             const command = `node --require "${interceptorPath}" "${claudePath}" ${args.join(' ')}`;
             logger.info(`Executing command with interceptor: ${command}`, 'TerminalService');
             terminal.sendText(command);
 
             logger.info('Claude session with interceptor created successfully', 'TerminalService');
-            
+
         } catch (error) {
             const message = `Failed to create Claude session with interceptor: ${(error as Error).message}`;
             logger.error(message, 'TerminalService', error as Error);
