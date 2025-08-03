@@ -16,6 +16,21 @@ export class ClaudeSessionProvider implements vscode.TreeDataProvider<ClaudeSess
         this.settingsManager.on('settings:updated', () => {
             this.refresh();
         });
+        
+        // 监听服务提供方变化
+        this.settingsManager.on('service-providers:updated', () => {
+            this.refresh();
+        });
+        
+        // 监听活动服务提供方变化
+        this.settingsManager.on('active-service-provider:changed', () => {
+            this.refresh();
+        });
+        
+        // 监听活动账号变化
+        this.settingsManager.on('active-account:changed', () => {
+            this.refresh();
+        });
     }
 
     refresh(): void {
@@ -28,8 +43,19 @@ export class ClaudeSessionProvider implements vscode.TreeDataProvider<ClaudeSess
 
     getChildren(element?: ClaudeSessionItem): Thenable<ClaudeSessionItem[]> {
         if (!element) {
-            // 返回根项目
-            return Promise.resolve(this.getProjects());
+            // 返回根级别项目：账号选择器 + 项目列表
+            const children: ClaudeSessionItem[] = [];
+            
+            // 添加账号选择器
+            children.push(this.getAccountSelector());
+            
+            // 添加分隔符
+            children.push(this.getSeparator());
+            
+            // 添加项目列表
+            children.push(...this.getProjects());
+            
+            return Promise.resolve(children);
         } else if (element.contextValue === 'project') {
             // 返回项目下的会话
             return Promise.resolve(this.getSessions(element.projectId!));
@@ -37,6 +63,65 @@ export class ClaudeSessionProvider implements vscode.TreeDataProvider<ClaudeSess
             // 会话没有子项
             return Promise.resolve([]);
         }
+    }
+
+    private getAccountSelector(): ClaudeSessionItem {
+        const currentActive = this.settingsManager.getCurrentActiveAccount();
+        let label = '🔄 Select AI Provider';
+        let description = 'Click to choose an AI provider';
+        let tooltip = 'No AI provider is currently selected. Click to choose one.';
+        let icon = new vscode.ThemeIcon('account', new vscode.ThemeColor('statusBarItem.warningBackground'));
+        
+        if (currentActive) {
+            if (currentActive.provider.type === 'claude_official') {
+                const account = currentActive.account as any;
+                label = `✓ ${account.emailAddress}`;
+                description = `Claude Official`;
+                tooltip = `Active: Claude Official\nAccount: ${account.emailAddress}\nOrganization: ${account.organizationName}\n\nClick to switch providers`;
+                icon = new vscode.ThemeIcon('check-all', new vscode.ThemeColor('statusBarItem.activeBackground'));
+            } else {
+                const account = currentActive.account as any;
+                label = `✓ ${account.name}`;
+                description = `${currentActive.provider.name}`;
+                tooltip = `Active: ${currentActive.provider.name}\nAccount: ${account.name}\nBase URL: ${account.baseUrl}\n\nClick to switch providers`;
+                icon = new vscode.ThemeIcon('check-all', new vscode.ThemeColor('statusBarItem.activeBackground'));
+            }
+        }
+
+        const item = new ClaudeSessionItem(
+            label,
+            vscode.TreeItemCollapsibleState.None,
+            'accountSelector',
+            icon,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            tooltip,
+            {
+                command: 'cc-copilot.selectActiveProvider',
+                title: 'Select Active AI Provider'
+            }
+        );
+
+        // 设置描述文本
+        item.description = description;
+
+        return item;
+    }
+
+    private getSeparator(): ClaudeSessionItem {
+        return new ClaudeSessionItem(
+            '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+            vscode.TreeItemCollapsibleState.None,
+            'separator',
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            'Projects and Sessions'
+        );
     }
 
     private getProjects(): ClaudeSessionItem[] {

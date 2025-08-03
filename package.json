@@ -1,7 +1,7 @@
 {
   "name": "cc-copilot",
   "displayName": "CC Copilot",
-  "description": "A VS Code extension for managing Claude CLI sessions and AI-powered development",
+  "description": "A VS Code extension for managing Claude Code CLI sessions and Quickly switch accounts.",
   "version": "0.0.1",
   "publisher": "cc-copilot",
   "engines": {
@@ -80,6 +80,21 @@
         "command": "cc-copilot.selectActiveProvider",
         "title": "Select Active AI Provider",
         "icon": "$(account)"
+      },
+      {
+        "command": "cc-copilot.discoverClaudeAccounts",
+        "title": "Discover Claude Accounts",
+        "icon": "$(search)"
+      },
+      {
+        "command": "cc-copilot.claudeLogin",
+        "title": "Login to Claude",
+        "icon": "$(sign-in)"
+      },
+      {
+        "command": "cc-copilot.reloginAccount",
+        "title": "Re-login Account",
+        "icon": "$(refresh)"
       }
     ],
     "menus": {
@@ -113,6 +128,11 @@
           "command": "cc-copilot.selectActiveProvider",
           "when": "view == claude-sessions-view",
           "group": "navigation@4"
+        },
+        {
+          "command": "cc-copilot.discoverClaudeAccounts",
+          "when": "view == claude-sessions-view",
+          "group": "navigation@5"
         }
       ],
       "view/item/context": [
@@ -125,6 +145,36 @@
           "command": "cc-copilot.deleteSession",
           "when": "view == claude-sessions-view && viewItem == session",
           "group": "context"
+        },
+        {
+          "command": "cc-copilot.selectActiveProvider",
+          "when": "view == claude-sessions-view && viewItem == accountSelector",
+          "group": "inline"
+        },
+        {
+          "command": "cc-copilot.addThirdPartyProvider",
+          "when": "view == claude-sessions-view && viewItem == accountSelector",
+          "group": "context@1"
+        },
+        {
+          "command": "cc-copilot.openSettings",
+          "when": "view == claude-sessions-view && viewItem == accountSelector",
+          "group": "context@2"
+        },
+        {
+          "command": "cc-copilot.discoverClaudeAccounts",
+          "when": "view == claude-sessions-view && viewItem == accountSelector",
+          "group": "context@3"
+        },
+        {
+          "command": "cc-copilot.claudeLogin",
+          "when": "view == claude-sessions-view && viewItem == accountSelector",
+          "group": "context@4"
+        },
+        {
+          "command": "cc-copilot.reloginAccount",
+          "when": "view == claude-sessions-view && viewItem == accountSelector",
+          "group": "context@5"
         }
       ]
     },
@@ -141,7 +191,7 @@
             },
             "url": {
               "type": "string",
-              "default": "http://127.0.0.1:1087",
+              "default": "http://127.0.0.1:7890",
               "format": "uri",
               "pattern": "^https?://.*",
               "patternErrorMessage": "Must be a valid HTTP or HTTPS URL",
@@ -161,7 +211,7 @@
           "additionalProperties": false,
           "default": {
             "enabled": false,
-            "url": "http://127.0.0.1:1087",
+            "url": "http://127.0.0.1:7890",
             "username": "",
             "password": ""
           },
@@ -301,7 +351,7 @@
             "skipPermissions": {
               "type": "boolean",
               "default": true,
-              "markdownDescription": "Skip permission checks for terminal operations. **Warning**: This may reduce security."
+              "markdownDescription": "Automatically add `--dangerously-skip-permissions` flag when starting Claude CLI sessions. **Warning**: This may reduce security."
             }
           },
           "additionalProperties": false,

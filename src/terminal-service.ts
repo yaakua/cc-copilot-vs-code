@@ -145,7 +145,7 @@ export class TerminalService {
             const terminalConfig = this.settingsManager.getTerminalConfig();
             
             // 构建Claude命令参数
-            const args = ['new'];
+            const args = [''];
             if (terminalConfig.skipPermissions) {
                 args.push('--dangerously-skip-permissions');
             }
@@ -269,5 +269,57 @@ export class TerminalService {
             logger.error('Failed to get Claude info', 'TerminalService', error as Error);
         }
         return null;
+    }
+
+    /**
+     * 执行Claude login命令
+     */
+    public async executeClaudeLogin(): Promise<void> {
+        try {
+            logger.info('Executing Claude login...', 'TerminalService');
+            
+            // 检测Claude CLI路径
+            const claudePath = await claudePathManager.getClaudePath();
+            if (!claudePath) {
+                const message = 'Claude CLI not found. Please install Claude CLI first.';
+                logger.error(message, 'TerminalService');
+                vscode.window.showErrorMessage(message);
+                return;
+            }
+
+            logger.info(`Using Claude CLI at: ${claudePath}`, 'TerminalService');
+
+            // 获取工作目录
+            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+            const cwd = workspaceFolder?.uri.fsPath || process.cwd();
+
+            // 创建终端
+            const terminal = vscode.window.createTerminal({
+                name: 'Claude Login',
+                cwd: cwd,
+                env: this.getClaudeEnvironment()
+            });
+
+            // 显示终端
+            terminal.show();
+
+            // 执行Claude login命令
+            const command = `"${claudePath}" login`;
+            logger.info(`Executing command: ${command}`, 'TerminalService');
+            terminal.sendText(command);
+
+            // 提示用户
+            vscode.window.showInformationMessage(
+                'Claude login initiated. Please follow the instructions in the terminal to complete the login process.',
+                'OK'
+            );
+
+            logger.info('Claude login command executed successfully', 'TerminalService');
+            
+        } catch (error) {
+            const message = `Failed to execute Claude login: ${(error as Error).message}`;
+            logger.error(message, 'TerminalService', error as Error);
+            vscode.window.showErrorMessage(message);
+        }
     }
 }
