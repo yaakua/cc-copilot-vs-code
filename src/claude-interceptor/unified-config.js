@@ -69,8 +69,7 @@ class UnifiedInterceptorConfig {
 
     /**
      * 获取VSCode配置信息
-     * 这里需要通过某种方式与主VSCode进程通信
-     * 可以通过环境变量、命令行参数或其他IPC机制
+     * 优先从环境变量获取，备用从VSCode settings.json文件读取
      */
     getVSCodeConfig() {
         try {
@@ -79,7 +78,11 @@ class UnifiedInterceptorConfig {
             if (configEnv) {
                 const config = JSON.parse(configEnv);
                 console.log(`[DEBUG] [Claude Interceptor] 📁 Got VSCode config from environment`);
-                return config;
+                return {
+                    proxyConfig: config.proxyConfig || { enabled: false, url: 'http://127.0.0.1:1087' },
+                    serviceProviders: config.serviceProviders || [],
+                    activeServiceProviderId: config.activeServiceProviderId || ''
+                };
             }
 
             // 方案2: 读取VSCode settings.json文件（如果可访问）
@@ -91,15 +94,27 @@ class UnifiedInterceptorConfig {
                 
                 if (ccCopilotConfig) {
                     console.log(`[DEBUG] [Claude Interceptor] 📁 Got VSCode config from settings file`);
-                    return ccCopilotConfig;
+                    return {
+                        proxyConfig: ccCopilotConfig.proxyConfig || { enabled: false, url: 'http://127.0.0.1:1087' },
+                        serviceProviders: ccCopilotConfig.serviceProviders || [],
+                        activeServiceProviderId: ccCopilotConfig.activeServiceProviderId || ''
+                    };
                 }
             }
 
-            console.log(`[DEBUG] [Claude Interceptor] ⚠️ No VSCode config available`);
-            return null;
+            console.log(`[DEBUG] [Claude Interceptor] ⚠️ No VSCode config available, using defaults`);
+            return {
+                proxyConfig: { enabled: false, url: 'http://127.0.0.1:1087' },
+                serviceProviders: [],
+                activeServiceProviderId: ''
+            };
         } catch (error) {
             console.warn('[DEBUG] [Claude Interceptor] ❌ Failed to get VSCode config:', error.message);
-            return null;
+            return {
+                proxyConfig: { enabled: false, url: 'http://127.0.0.1:1087' },
+                serviceProviders: [],
+                activeServiceProviderId: ''
+            };
         }
     }
 
@@ -206,7 +221,7 @@ class UnifiedInterceptorConfig {
             console.log(`[IPC_MESSAGE] ${JSON.stringify(updateData)}`);
             
             // 方案2: 写入临时文件（简化版，只在必要时使用）
-            const tempDir = path.join(os.tmpdir(), 'cc-copilot-auth-updates');
+            const tempDir = path.join(os.homedir(), '.cc-copilot-auth-updates');
             if (!fs.existsSync(tempDir)) {
                 fs.mkdirSync(tempDir, { recursive: true });
             }

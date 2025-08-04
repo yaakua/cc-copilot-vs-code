@@ -12,18 +12,14 @@ class ProxyManager {
      */
     getProxyConfig() {
         try {
-            const settingsData = this.configManager.loadSettingsFromStore();
-            if (settingsData) {
-                const proxyConfig = settingsData.proxyConfig || { enabled: false };
-                const shouldUseProxy = this.configManager.shouldUseProxyForCurrentProvider(settingsData);
+            const proxyConfig = this.configManager.getProxyConfig();
+            const shouldUseProxy = this.configManager.shouldUseProxy();
 
-                return {
-                    enabled: proxyConfig.enabled && shouldUseProxy,
-                    url: proxyConfig.url,
-                    auth: proxyConfig.auth
-                };
-            }
-            return { enabled: false };
+            return {
+                enabled: proxyConfig.enabled && shouldUseProxy,
+                url: proxyConfig.url,
+                auth: proxyConfig.auth
+            };
         } catch (error) {
             console.warn('[SILENT] Unable to get proxy config:', error.message);
             return { enabled: false };

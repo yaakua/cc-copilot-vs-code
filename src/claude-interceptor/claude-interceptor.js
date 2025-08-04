@@ -1,6 +1,6 @@
 const { CONFIG_CHECK_INTERVAL } = require('./constants');
-const ConfigManager = require('./config-manager');
-const AccountManager = require('./account-manager');
+const UnifiedConfigManager = require('./unified-config');
+const UnifiedAccountManager = require('./unified-account-manager');
 const ProxyManager = require('./proxy-manager');
 const RequestInterceptor = require('./request-interceptor');
 
@@ -10,8 +10,8 @@ const RequestInterceptor = require('./request-interceptor');
  */
 class ClaudeInterceptor {
     constructor() {
-        this.configManager = new ConfigManager();
-        this.accountManager = new AccountManager(this.configManager);
+        this.configManager = new UnifiedConfigManager();
+        this.accountManager = new UnifiedAccountManager();
         this.proxyManager = new ProxyManager(this.configManager);
         this.requestInterceptor = new RequestInterceptor(this.accountManager);
 
@@ -102,7 +102,7 @@ class ClaudeInterceptor {
                 account: this.accountInfo,
                 proxy: this.proxyConfig
             });
-            this.lastConfigHash = this.configManager.simpleHash(configData);
+            this.lastConfigHash = this.simpleHash(configData);
 
             console.log('[TERMINAL] [Claude Interceptor] Configuration refreshed');
         } catch (error) {
@@ -122,7 +122,7 @@ class ClaudeInterceptor {
                 account: currentAccountInfo,
                 proxy: currentProxyConfig
             });
-            const currentHash = this.configManager.simpleHash(configData);
+            const currentHash = this.simpleHash(configData);
 
             // 如果配置发生变化，则更新
             if (currentHash !== this.lastConfigHash) {
@@ -138,11 +138,13 @@ class ClaudeInterceptor {
     }
 
     /**
-     * 设置配置文件监听器
+     * 设置配置文件监听器  
      */
     setupConfigWatcher() {
         try {
-            this.settingsWatcher = this.configManager.setupConfigWatcher(this.onConfigChanged);
+            // 由于新的架构使用VSCode配置变更通知，这里暂时不需要文件监听
+            // 可以通过定期检查来替代
+            console.log('[SILENT] [Claude Interceptor] Config watching setup (using periodic checks)');
         } catch (error) {
             console.warn('[SILENT] [Claude Interceptor] Failed to setup config file monitoring:', error.message);
         }
@@ -179,13 +181,26 @@ class ClaudeInterceptor {
     cleanup() {
         try {
             if (this.settingsWatcher) {
-                this.configManager.stopConfigWatcher();
                 this.settingsWatcher = null;
                 console.log('[SILENT] [Claude Interceptor] Config file monitoring stopped');
             }
         } catch (error) {
             console.warn('[SILENT] [Claude Interceptor] Failed to cleanup monitor:', error.message);
         }
+    }
+
+    /**
+     * 简单哈希函数
+     */
+    simpleHash(str) {
+        let hash = 0;
+        if (str.length === 0) return hash;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // 转换为32位整数
+        }
+        return hash;
     }
 }
 

@@ -24,6 +24,7 @@ export class UnifiedConfigManager extends EventEmitter {
   constructor() {
     super()
     this.setupConfigWatcher()
+    this.setupInterceptorListener()
   }
 
   // =============================================================================
@@ -463,5 +464,81 @@ export class UnifiedConfigManager extends EventEmitter {
    */
   async createThirdPartyProvider(name: string, account: ThirdPartyAccountConfig): Promise<void> {
     await this.addThirdPartyAccount(name, account)
+  }
+
+  // =============================================================================
+  // 拦截器通信监听
+  // =============================================================================
+
+  /**
+   * 设置拦截器监听器
+   * 监听拦截器的授权更新和账号发现通知
+   */
+  private setupInterceptorListener(): void {
+    try {
+      const tempDir = path.join(os.homedir(), '.cc-copilot-auth-updates')
+      
+      // 确保目录存在
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true })
+      }
+
+      // 监听授权更新文件
+      fs.watch(tempDir, (eventType: string, filename: string | null) => {
+        if (filename && eventType === 'rename' && filename.startsWith('auth_update_')) {
+          this.handleInterceptorAuthUpdate(path.join(tempDir, filename))
+        }
+      })
+
+      // 记录监听器以便清理（在实际使用中应该添加到disposal列表）
+      console.log('✅ Interceptor authorization listener setup complete')
+    } catch (error) {
+      console.warn('⚠️ Failed to setup interceptor listener:', error)
+    }
+  }
+
+  /**
+   * 处理拦截器的授权更新通知
+   */
+  private async handleInterceptorAuthUpdate(filePath: string): Promise<void> {
+    try {
+      if (!fs.existsSync(filePath)) {
+        return
+      }
+
+      const fileContent = fs.readFileSync(filePath, 'utf-8')
+      const updateData = JSON.parse(fileContent)
+
+      if (updateData.type === 'AUTHORIZATION_UPDATE') {
+        console.log(`📨 Received authorization update from interceptor for: ${updateData.emailAddress}`)
+        
+        // 更新配置中的授权令牌
+        await this.updateClaudeAccountAuthorization(updateData.emailAddress, updateData.authorization)
+        
+        console.log(`✅ Authorization updated for: ${updateData.emailAddress}`)
+        
+      } else if (updateData.type === 'ACCOUNT_DISCOVERED') {
+        console.log(`📨 Received account discovery from interceptor: ${updateData.account.emailAddress}`)
+        
+        // 添加或更新发现的账号
+        await this.addOrUpdateClaudeAccount(updateData.account)
+        
+        console.log(`✅ Account added/updated: ${updateData.account.emailAddress}`)
+        
+      } else if (updateData.type === 'TOKEN_EXPIRED') {
+        console.log(`⚠️ Received token expiration notification for: ${updateData.emailAddress}`)
+        
+        // 清空过期的授权令牌
+        await this.updateClaudeAccountAuthorization(updateData.emailAddress, '')
+        
+        console.log(`🔄 Cleared expired token for: ${updateData.emailAddress}`)
+      }
+
+      // 删除处理完的文件
+      fs.unlinkSync(filePath)
+      
+    } catch (error) {
+      console.warn('❌ Failed to handle interceptor auth update:', error)
+    }
   }
 }
