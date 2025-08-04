@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { SettingsManager } from '../settings'
+import { UnifiedConfigManager } from '../shared/config-manager'
 import { Session, Project, StoreData } from './types'
 import { StorageManager } from './storage-manager'
 import { ProjectManager } from './project-manager'
@@ -8,7 +8,7 @@ import { ClaudeSyncManager } from './claude-sync-manager'
 
 export class SessionManager {
   private data: StoreData
-  private _settingsManager: SettingsManager | null = null
+  private _configManager: UnifiedConfigManager | null = null
   private _context: vscode.ExtensionContext
   
   private storageManager: StorageManager
@@ -16,9 +16,9 @@ export class SessionManager {
   private sessionDataManager: SessionDataManager
   private claudeSyncManager: ClaudeSyncManager
 
-  constructor(context: vscode.ExtensionContext, settingsManager?: SettingsManager) {
+  constructor(context: vscode.ExtensionContext, configManager?: UnifiedConfigManager) {
     this._context = context
-    this._settingsManager = settingsManager || null
+    this._configManager = configManager || null
     
     this.storageManager = new StorageManager(context)
     this.data = this.storageManager.load()
@@ -48,8 +48,8 @@ export class SessionManager {
     )
   }
 
-  public setSettingsManager(settingsManager: SettingsManager): void {
-    this._settingsManager = settingsManager
+  public setConfigManager(configManager: UnifiedConfigManager): void {
+    this._configManager = configManager
   }
 
   // Project Management Methods

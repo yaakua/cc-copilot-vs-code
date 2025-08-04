@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { SessionManager } from './session-manager';
-import { SettingsManager } from './settings';
+import { UnifiedConfigManager } from './shared/config-manager';
 import { Project, Session } from './shared/types';
 import { logger } from './logger';
 
@@ -23,29 +23,29 @@ export class ClaudeSessionProvider implements vscode.TreeDataProvider<ClaudeSess
     /**
      * 构造函数
      * @param sessionManager - 会话管理器实例
-     * @param settingsManager - 设置管理器实例
+     * @param configManager - 统一配置管理器实例
      */
     constructor(
         private sessionManager: SessionManager,
-        private settingsManager: SettingsManager
+        private configManager: UnifiedConfigManager
     ) {
         // 监听设置变化，自动刷新视图
-        this.settingsManager.on('settings:updated', () => {
+        this.configManager.on('config:changed', () => {
             this.refresh();
         });
 
         // 监听服务提供方变化
-        this.settingsManager.on('service-providers:updated', () => {
+        this.configManager.on('serviceProvider:updated', () => {
             this.refresh();
         });
 
         // 监听活动服务提供方变化
-        this.settingsManager.on('active-service-provider:changed', () => {
+        this.configManager.on('serviceProvider:activated', () => {
             this.refresh();
         });
 
         // 监听活动账号变化
-        this.settingsManager.on('active-account:changed', () => {
+        this.configManager.on('claudeAccount:activated', () => {
             this.refresh();
         });
     }
@@ -105,7 +105,8 @@ export class ClaudeSessionProvider implements vscode.TreeDataProvider<ClaudeSess
      * @returns 账号管理区域树形项目
      */
     private getAccountManagementSection(): ClaudeSessionItem {
-        const currentActive = this.settingsManager.getCurrentActiveAccount();
+        const activeProvider = this.configManager.getActiveServiceProvider();
+        const currentActive = activeProvider ? { provider: activeProvider, account: null } : null;
         let label = 'Account Management';
         let description = '';
         let tooltip = 'Click to expand account management options';
@@ -180,16 +181,16 @@ export class ClaudeSessionProvider implements vscode.TreeDataProvider<ClaudeSess
      */
     private getAllAvailableAccounts(): ClaudeSessionItem[] {
         const accounts: ClaudeSessionItem[] = [];
-        const providers = this.settingsManager.getServiceProviders();
-        const currentActive = this.settingsManager.getCurrentActiveAccount();
+        const providers = this.configManager.getServiceProviders();
+        const activeProvider = this.configManager.getActiveServiceProvider();
 
         // Claude官方账号
         const claudeProvider = providers.find((p: any) => p.type === 'claude_official');
         if (claudeProvider && claudeProvider.accounts && claudeProvider.accounts.length > 0) {
             claudeProvider.accounts.forEach((account: any) => {
-                const isActive = currentActive && 
-                    currentActive.provider.type === 'claude_official' && 
-                    (currentActive.account as any).emailAddress === account.emailAddress;
+                const isActive = activeProvider && 
+                    activeProvider.type === 'claude_official' && 
+                    activeProvider.activeAccountId === account.emailAddress;
 
                 const label = `${account.emailAddress}`;
                 // const label = isActive ? `✓ ${baseLabel}` : baseLabel;
@@ -227,9 +228,9 @@ export class ClaudeSessionProvider implements vscode.TreeDataProvider<ClaudeSess
         thirdPartyProviders.forEach((provider: any) => {
             if (provider.accounts && provider.accounts.length > 0) {
                 provider.accounts.forEach((account: any) => {
-                    const isActive = currentActive && 
-                        currentActive.provider.id === provider.id && 
-                        (currentActive.account as any).id === account.id;
+                    const isActive = activeProvider && 
+                        activeProvider.id === provider.id && 
+                        activeProvider.activeAccountId === account.id;
 
                     const baseLabel = account.name;
                     const label = isActive ? `✓ ${baseLabel}` : baseLabel;
@@ -272,28 +273,34 @@ export class ClaudeSessionProvider implements vscode.TreeDataProvider<ClaudeSess
      * @returns 账号选择器树形项目
      */
     private getAccountSelector(): ClaudeSessionItem {
-        const currentActive = this.settingsManager.getCurrentActiveAccount();
+        const activeProvider = this.configManager.getActiveServiceProvider();
         let label = '🔄 Select AI Provider';
         let description = 'Click to choose an AI provider';
         let tooltip = 'No AI provider is currently selected. Click to choose one.';
         let icon = new vscode.ThemeIcon('account', new vscode.ThemeColor('statusBarItem.warningBackground'));
 
         // 根据当前活动账号设置显示信息
-        if (currentActive) {
-            if (currentActive.provider.type === 'claude_official') {
+        if (activeProvider) {
+            if (activeProvider.type === 'claude_official') {
                 // Claude官方服务
-                const account = currentActive.account as any;
-                label = `✓ ${account.emailAddress}`;
-                description = `Claude Official`;
-                tooltip = `Active: Claude Official\nAccount: ${account.emailAddress}\nOrganization: ${account.organizationName}\n\nClick to switch providers`;
-                icon = new vscode.ThemeIcon('check-all', new vscode.ThemeColor('statusBarItem.activeBackground'));
+                const claudeAccounts = activeProvider.accounts as any[];
+                const activeAccount = claudeAccounts.find((acc: any) => acc.emailAddress === activeProvider.activeAccountId);
+                if (activeAccount) {
+                    label = `✓ ${activeAccount.emailAddress}`;
+                    description = `Claude Official`;
+                    tooltip = `Active: Claude Official\nAccount: ${activeAccount.emailAddress}\nOrganization: ${activeAccount.organizationName}\n\nClick to switch providers`;
+                    icon = new vscode.ThemeIcon('check-all', new vscode.ThemeColor('statusBarItem.activeBackground'));
+                }
             } else {
                 // 第三方服务提供商
-                const account = currentActive.account as any;
-                label = `✓ ${account.name}`;
-                description = `${currentActive.provider.name}`;
-                tooltip = `Active: ${currentActive.provider.name}\nAccount: ${account.name}\nBase URL: ${account.baseUrl}\n\nClick to switch providers`;
-                icon = new vscode.ThemeIcon('check-all', new vscode.ThemeColor('statusBarItem.activeBackground'));
+                const thirdPartyAccounts = activeProvider.accounts as any[];
+                const activeAccount = thirdPartyAccounts.find((acc: any) => acc.id === activeProvider.activeAccountId);
+                if (activeAccount) {
+                    label = `✓ ${activeAccount.name}`;
+                    description = `${activeProvider.name}`;
+                    tooltip = `Active: ${activeProvider.name}\nAccount: ${activeAccount.name}\nBase URL: ${activeAccount.baseUrl}\n\nClick to switch providers`;
+                    icon = new vscode.ThemeIcon('check-all', new vscode.ThemeColor('statusBarItem.activeBackground'));
+                }
             }
         }
 

@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { claudePathManager } from './claude-path-manager';
-import { SettingsManager } from './settings';
+import { UnifiedConfigManager } from './shared/config-manager';
 import { SessionManager } from './session-manager';
 import { logger } from './logger';
 
@@ -14,12 +14,12 @@ export class TerminalService {
     /**
      * 构造函数
      * @param context - VSCode扩展上下文
-     * @param settingsManager - 设置管理器实例
+     * @param configManager - 统一配置管理器实例
      * @param sessionManager - 会话管理器实例
      */
     constructor(
         private context: vscode.ExtensionContext,
-        private settingsManager: SettingsManager,
+        private configManager: UnifiedConfigManager,
         private sessionManager?: SessionManager
     ) {
         // 启动拦截器通信监听
@@ -80,13 +80,12 @@ export class TerminalService {
 
             if (request.type === 'GET_SETTINGS') {
                 // 处理设置获取请求
-                const settings = this.settingsManager.getSettings();
-                const serviceProviders = this.settingsManager.getServiceProviders();
+                const config = this.configManager.getConfig();
                 
                 const response = {
-                    ...settings,
-                    serviceProviders,
-                    activeServiceProviderId: this.settingsManager.getSettings().activeServiceProviderId
+                    ...config,
+                    serviceProviders: config.serviceProviders,
+                    activeServiceProviderId: config.activeServiceProviderId
                 };
 
                 // 写入响应文件
@@ -101,17 +100,8 @@ export class TerminalService {
                 
                 const { settings } = request;
                 
-                // 更新服务提供商配置
-                if (settings.serviceProviders) {
-                    // 使用VSCode的配置系统更新
-                    const config = vscode.workspace.getConfiguration('ccCopilot');
-                    await config.update('serviceProviders', settings.serviceProviders, vscode.ConfigurationTarget.Global);
-                }
-                
-                if (settings.activeServiceProviderId) {
-                    const config = vscode.workspace.getConfiguration('ccCopilot');
-                    await config.update('activeServiceProviderId', settings.activeServiceProviderId, vscode.ConfigurationTarget.Global);
-                }
+                // 使用统一配置管理器更新设置
+                await this.configManager.updateConfig(settings);
                 
                 logger.info('✅ Settings updated from interceptor', 'TerminalService');
                 
@@ -304,7 +294,7 @@ export class TerminalService {
         const env = { ...process.env };
 
         // 如果启用了代理，设置代理环境变量
-        const proxyConfig = this.settingsManager.getProxyConfig();
+        const proxyConfig = this.configManager.getProxyConfig();
         if (proxyConfig.enabled && proxyConfig.url) {
             let proxyUrl = proxyConfig.url;
 
@@ -414,14 +404,13 @@ export class TerminalService {
         try {
             logger.info('🔍 Creating hidden test session to verify account token...', 'TerminalService');
 
-            // 记录当前活动账号状态
-            const currentAccount = this.settingsManager.getCurrentActiveAccount();
+            // 记录当前活动账号状态  
+            const currentAccount = this.configManager.getCurrentActiveClaudeAccount();
             if (currentAccount) {
-                const account = currentAccount.account as any;
-                logger.info(`📋 Current active account: ${account.emailAddress || account.name}`, 'TerminalService');
-                logger.info(`🔑 Current token status: ${account.authorization ? 'Has token' : 'No token'}`, 'TerminalService');
-                if (account.authorization) {
-                    logger.info(`🔑 Token preview: ${account.authorization.substring(0, 20)}...`, 'TerminalService');
+                logger.info(`📋 Current active account: ${currentAccount.emailAddress}`, 'TerminalService');
+                logger.info(`🔑 Current token status: ${currentAccount.authorization ? 'Has token' : 'No token'}`, 'TerminalService');
+                if (currentAccount.authorization) {
+                    logger.info(`🔑 Token preview: ${currentAccount.authorization.substring(0, 20)}...`, 'TerminalService');
                 }
             } else {
                 logger.warn('⚠️ No active account found', 'TerminalService');
@@ -496,15 +485,12 @@ export class TerminalService {
                 attempts++;
 
                 // 检查当前账号是否已获取到token
-                const currentAccount = this.settingsManager.getCurrentActiveAccount();
-                if (currentAccount && currentAccount.account) {
-                    const account = currentAccount.account as any;
-                    if (account.authorization) {
-                        logger.info(`✅ Token successfully obtained through test session! (attempt ${attempts}/${maxAttempts})`, 'TerminalService');
-                        logger.info(`🔑 New token preview: ${account.authorization.substring(0, 20)}...`, 'TerminalService');
-                        terminal.dispose(); // 清理隐藏终端
-                        return true;
-                    }
+                const currentAccount = this.configManager.getCurrentActiveClaudeAccount();
+                if (currentAccount && currentAccount.authorization) {
+                    logger.info(`✅ Token successfully obtained through test session! (attempt ${attempts}/${maxAttempts})`, 'TerminalService');
+                    logger.info(`🔑 New token preview: ${currentAccount.authorization.substring(0, 20)}...`, 'TerminalService');
+                    terminal.dispose(); // 清理隐藏终端
+                    return true;
                 }
                 
                 if (attempts % 3 === 0) {

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { SettingsManager } from '../settings'
+import { UnifiedConfigManager } from '../shared/config-manager'
 import { SessionManager } from '../session-manager'
 import { TerminalService } from '../terminal-service'
 import { ClaudeSessionProvider } from '../treeProvider'
@@ -7,7 +7,7 @@ import { ClaudeSessionProvider } from '../treeProvider'
 export class SessionCommands {
   constructor(
     private context: vscode.ExtensionContext,
-    private settingsManager: SettingsManager,
+    private configManager: UnifiedConfigManager,
     private sessionManager: SessionManager,
     private terminalService: TerminalService,
     private sessionProvider: ClaudeSessionProvider

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { SettingsManager } from '../settings'
+import { UnifiedConfigManager } from '../shared/config-manager'
 import { SessionManager } from '../session-manager'
 import { TerminalService } from '../terminal-service'
 import { ClaudeSessionProvider } from '../treeProvider'
@@ -23,14 +23,14 @@ export class CommandRegistry {
   /**
    * 构造函数
    * @param context - VSCode扩展上下文
-   * @param settingsManager - 设置管理器
+   * @param configManager - 统一配置管理器
    * @param sessionManager - 会话管理器
    * @param terminalService - 终端服务
    * @param sessionProvider - 会话树形视图提供器
    */
   constructor(
     private context: vscode.ExtensionContext,
-    private settingsManager: SettingsManager,
+    private configManager: UnifiedConfigManager,
     private sessionManager: SessionManager,
     private terminalService: TerminalService,
     private sessionProvider: ClaudeSessionProvider
@@ -38,7 +38,7 @@ export class CommandRegistry {
     // 初始化会话命令处理器
     this.sessionCommands = new SessionCommands(
       context,
-      settingsManager,
+      configManager,
       sessionManager,
       terminalService,
       sessionProvider
@@ -47,13 +47,13 @@ export class CommandRegistry {
     // 初始化服务提供商命令处理器
     this.providerCommands = new ProviderCommands(
       context,
-      settingsManager
+      configManager
     )
 
     // 初始化账号命令处理器
     this.accountCommands = new AccountCommands(
       context,
-      settingsManager,
+      configManager,
       terminalService
     )
   }

@@ -2,13 +2,13 @@ import * as vscode from 'vscode'
 import * as os from 'os'
 import * as path from 'path'
 import * as fs from 'fs'
-import { SettingsManager } from '../settings'
+import { UnifiedConfigManager } from '../shared/config-manager'
 import { TerminalService } from '../terminal-service'
 
 export class AccountCommands {
   constructor(
     private context: vscode.ExtensionContext,
-    private settingsManager: SettingsManager,
+    private configManager: UnifiedConfigManager,
     private terminalService: TerminalService
   ) {}
 
@@ -25,7 +25,7 @@ export class AccountCommands {
     const discoverClaudeAccountsCommand = vscode.commands.registerCommand('cc-copilot.discoverClaudeAccounts', async () => {
       try {
         vscode.window.showInformationMessage('Discovering Claude accounts...')
-        const accounts = await this.settingsManager.refreshClaudeAccounts()
+        const accounts = await this.configManager.refreshClaudeAccounts()
         
         if (accounts.length > 0) {
           vscode.window.showInformationMessage(`Discovered ${accounts.length} Claude account(s): ${accounts.map((a: any) => a.emailAddress).join(', ')}`)
@@ -82,7 +82,7 @@ export class AccountCommands {
         
         setTimeout(async () => {
           try {
-            const accounts = await this.settingsManager.refreshClaudeAccounts()
+            const accounts = await this.configManager.refreshClaudeAccounts()
             if (accounts.length > 0) {
               vscode.window.showInformationMessage(`Login successful! Found account: ${accounts[accounts.length - 1].emailAddress}`)
             }
@@ -102,7 +102,7 @@ export class AccountCommands {
     const reloginAccountCommand = vscode.commands.registerCommand('cc-copilot.reloginAccount', async (emailAddress?: string) => {
       try {
         if (!emailAddress) {
-          const providers = this.settingsManager.getServiceProviders()
+          const providers = this.configManager.getServiceProviders()
           const claudeProvider = providers.find((p: any) => p.type === 'claude_official')
           
           if (!claudeProvider || claudeProvider.accounts.length === 0) {
@@ -138,7 +138,7 @@ export class AccountCommands {
         
         setTimeout(async () => {
           try {
-            const accounts = await this.settingsManager.refreshClaudeAccounts()
+            const accounts = await this.configManager.refreshClaudeAccounts()
             const account = accounts.find((a: any) => a.emailAddress === emailAddress)
             if (account && account.authorization) {
               vscode.window.showInformationMessage(`Re-login successful for account: ${emailAddress}`)
@@ -161,10 +161,10 @@ export class AccountCommands {
         vscode.window.showInformationMessage('Refreshing all accounts...')
         
         // 刷新Claude官方账号
-        const claudeAccounts = await this.settingsManager.refreshClaudeAccounts()
+        const claudeAccounts = await this.configManager.refreshClaudeAccounts()
         
         // 获取所有服务提供商信息
-        const allProviders = this.settingsManager.getServiceProviders()
+        const allProviders = this.configManager.getServiceProviders()
         const claudeProvider = allProviders.find((p: any) => p.type === 'claude_official')
         const thirdPartyProviders = allProviders.filter((p: any) => p.type === 'third_party')
         
@@ -202,10 +202,10 @@ export class AccountCommands {
         const { providerId, accountId } = args
         
         // 保存当前活动账号，以便失败时回退
-        const previousActiveAccount = this.settingsManager.getCurrentActiveAccount()
+        const previousActiveAccount = this.configManager.getCurrentActiveAccount()
         
         // 获取目标账号信息
-        const providers = this.settingsManager.getServiceProviders()
+        const providers = this.configManager.getServiceProviders()
         const provider = providers.find((p: any) => p.id === providerId)
         
         if (!provider) {
@@ -247,11 +247,11 @@ export class AccountCommands {
           console.log('🔄 Step 1: Setting active account...');
           
           // 设置新的活动账号
-          await this.settingsManager.setActiveAccount(providerId, accountId)
+          await this.configManager.setActiveAccount(providerId, accountId)
           console.log('✅ Active account set successfully');
           
           // 验证账号是否已经切换
-          const newActiveAccount = this.settingsManager.getCurrentActiveAccount();
+          const newActiveAccount = this.configManager.getCurrentActiveAccount();
           console.log('🔍 New active account after switch:', newActiveAccount);
           
           // 检查是否为Claude官方账号且没有token
@@ -270,7 +270,7 @@ export class AccountCommands {
               console.log('✅ Token verification successful!');
               
               // 再次验证最终状态
-              const finalAccount = this.settingsManager.getCurrentActiveAccount();
+              const finalAccount = this.configManager.getCurrentActiveAccount();
               console.log('🔍 Final account state:', finalAccount);
               
               setTimeout(() => {
@@ -287,7 +287,7 @@ Token obtained and ready to use.`
               // 回退到原来的账号
               if (previousActiveAccount) {
                 console.log('🔄 Reverting to previous account:', previousActiveAccount);
-                await this.settingsManager.setActiveAccount(
+                await this.configManager.setActiveAccount(
                   previousActiveAccount.provider.id, 
                   previousActiveAccount.provider.type === 'claude_official' 
                     ? (previousActiveAccount.account as any).emailAddress 
@@ -338,7 +338,7 @@ The account may not be logged in or token is invalid. Please try logging in agai
         console.log('🔍 ===== Account Status Debug Report =====');
         
         // 1. 检查当前活动账号
-        const currentAccount = this.settingsManager.getCurrentActiveAccount();
+        const currentAccount = this.configManager.getCurrentActiveAccount();
         console.log('📋 Current Active Account:', currentAccount);
         
         if (currentAccount) {
@@ -351,7 +351,7 @@ The account may not be logged in or token is invalid. Please try logging in agai
         }
 
         // 2. 检查所有账号
-        const providers = this.settingsManager.getServiceProviders();
+        const providers = this.configManager.getServiceProviders();
         console.log('🔍 All Service Providers:', providers.length);
         
         providers.forEach((provider: any, index: number) => {

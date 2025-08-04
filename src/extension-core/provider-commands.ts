@@ -1,10 +1,10 @@
 import * as vscode from 'vscode'
-import { SettingsManager } from '../settings'
+import { UnifiedConfigManager } from '../shared/config-manager'
 
 export class ProviderCommands {
   constructor(
     private context: vscode.ExtensionContext,
-    private settingsManager: SettingsManager
+    private configManager: UnifiedConfigManager
   ) {}
 
   registerCommands(): void {
@@ -57,7 +57,7 @@ export class ProviderCommands {
           description: description || ''
         }
 
-        await this.settingsManager.createThirdPartyProvider(providerName, account)
+        await this.configManager.createThirdPartyProvider(providerName, account)
         vscode.window.showInformationMessage(`Third party provider "${providerName}" added successfully!`)
       } catch (error) {
         vscode.window.showErrorMessage(`Failed to add provider: ${(error as Error).message}`)
@@ -68,7 +68,7 @@ export class ProviderCommands {
 
   private registerSelectActiveProviderCommand(): void {
     const selectActiveProviderCommand = vscode.commands.registerCommand('cc-copilot.selectActiveProvider', async () => {
-      const options = this.settingsManager.getAllProviderOptions()
+      const options = this.configManager.getAllProviderOptions()
       
       if (options.length === 0) {
         const action = await vscode.window.showInformationMessage(
@@ -85,7 +85,7 @@ export class ProviderCommands {
         return
       }
 
-      const currentActiveId = this.settingsManager.getCurrentActiveCompositeId()
+      const currentActiveId = this.configManager.getCurrentActiveCompositeId()
       
       const quickPickItems = options.map((option: any) => ({
         label: option.label,
@@ -100,7 +100,7 @@ export class ProviderCommands {
 
       if (selected) {
         try {
-          await this.settingsManager.setActiveProviderByCompositeId((selected as any).id)
+          await this.configManager.setActiveProviderByCompositeId((selected as any).id)
           vscode.window.showInformationMessage(`Active provider set to: ${(selected as any).label}`)
         } catch (error) {
           vscode.window.showErrorMessage(`Failed to set active provider: ${(error as Error).message}`)

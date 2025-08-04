@@ -1,6 +1,6 @@
 import * as vscode from 'vscode'
 import { ClaudeSessionProvider } from '../treeProvider'
-import { SettingsManager } from '../settings'
+import { UnifiedConfigManager } from '../shared/config-manager'
 import { SessionManager } from '../session-manager'
 import { TerminalService } from '../terminal-service'
 import { logger } from '../logger'
@@ -12,8 +12,8 @@ import { CommandRegistry } from './command-registry'
  * 包括服务初始化、事件监听、命令注册等
  */
 export class ExtensionCore {
-  /** 设置管理器实例 */
-  private settingsManager!: SettingsManager
+  /** 统一配置管理器实例 */
+  private configManager!: UnifiedConfigManager
   /** 会话管理器实例 */
   private sessionManager!: SessionManager
   /** 终端服务实例 */
@@ -43,25 +43,24 @@ export class ExtensionCore {
     logger.setContext(this.context)
     logger.info('Claude Companion extension activated', 'extension')
 
-    // 初始化设置管理器
-    console.log('Initializing SettingsManager...')
-    console.log('SettingsManager type:', typeof SettingsManager)
-    this.settingsManager = new SettingsManager(this.context)
-    console.log('SettingsManager initialized successfully')
+    // 初始化统一配置管理器
+    console.log('Initializing UnifiedConfigManager...')
+    this.configManager = new UnifiedConfigManager()
+    console.log('UnifiedConfigManager initialized successfully')
 
     // 初始化会话管理器
     console.log('Initializing SessionManager...')
-    this.sessionManager = new SessionManager(this.context, this.settingsManager)
+    this.sessionManager = new SessionManager(this.context, this.configManager)
     console.log('SessionManager initialized successfully')
 
     // 初始化终端服务
     console.log('Initializing TerminalService...')
-    this.terminalService = new TerminalService(this.context, this.settingsManager, this.sessionManager)
+    this.terminalService = new TerminalService(this.context, this.configManager, this.sessionManager)
     console.log('TerminalService initialized successfully')
 
     // 初始化会话树形视图提供器
     console.log('Initializing ClaudeSessionProvider...')
-    this.sessionProvider = new ClaudeSessionProvider(this.sessionManager, this.settingsManager)
+    this.sessionProvider = new ClaudeSessionProvider(this.sessionManager, this.configManager)
     console.log('ClaudeSessionProvider initialized successfully')
   }
 
@@ -125,23 +124,35 @@ export class ExtensionCore {
 
   /**
    * 设置设置监听器
-   * 监听设置管理器的各种事件，自动刷新视图
+   * 监听统一配置管理器的各种事件，自动刷新视图
    */
   private setupSettingsWatcher(): void {
-    // 监听Claude账号发现事件
-    this.settingsManager.on('claude-accounts:discovered', () => {
-      logger.info('New Claude accounts discovered, refreshing tree view...', 'extension')
+    // 监听配置变化事件
+    this.configManager.on('config:changed', () => {
+      logger.info('Configuration changed, refreshing tree view...', 'extension')
+      this.sessionProvider.refresh()
+    })
+
+    // 监听Claude账号更新事件
+    this.configManager.on('claudeAccount:updated', () => {
+      logger.info('Claude account updated, refreshing tree view...', 'extension')
+      this.sessionProvider.refresh()
+    })
+
+    // 监听Claude账号刷新事件
+    this.configManager.on('claudeAccounts:refreshed', () => {
+      logger.info('Claude accounts refreshed, refreshing tree view...', 'extension')
       this.sessionProvider.refresh()
     })
 
     // 监听服务提供商更新事件
-    this.settingsManager.on('service-providers:updated', () => {
-      logger.info('Service providers updated, refreshing tree view...', 'extension')
+    this.configManager.on('serviceProvider:updated', () => {
+      logger.info('Service provider updated, refreshing tree view...', 'extension')
       this.sessionProvider.refresh()
     })
 
     // 监听活动服务提供商变化事件
-    this.settingsManager.on('active-service-provider:changed', () => {
+    this.configManager.on('serviceProvider:activated', () => {
       logger.info('Active service provider changed, refreshing tree view...', 'extension')
       this.sessionProvider.refresh()
     })
@@ -154,7 +165,7 @@ export class ExtensionCore {
   private registerCommands(): void {
     this.commandRegistry = new CommandRegistry(
       this.context,
-      this.settingsManager,
+      this.configManager,
       this.sessionManager,
       this.terminalService,
       this.sessionProvider
@@ -170,7 +181,7 @@ export class ExtensionCore {
     const intervalMs = 10000 // 10秒间隔
     const intervalId = setInterval(async () => {
       try {
-        await this.settingsManager.processInterceptorDiscoveredAccounts()
+        await this.configManager.refreshClaudeAccounts()
       } catch (error) {
         logger.debug('Error in interceptor discovery timer:', 'extension', error as Error)
       }
